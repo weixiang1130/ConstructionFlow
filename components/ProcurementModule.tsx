@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { ProcurementTable } from './ProcurementTable';
-import { LoginPage } from './LoginPage';
 import { ProjectSelectionPage } from './ProjectSelectionPage';
 import { UserRole, Project } from '../types';
 import { Layout, FolderOpen, X, Pencil, ArrowLeftRight, LogOut, ArrowLeft } from 'lucide-react';
@@ -10,12 +9,10 @@ const ROW_STORAGE_KEY = 'procurement_schedule_data';
 
 interface ProcurementModuleProps {
   onBackToLanding: () => void;
+  userRole: UserRole;
 }
 
-export const ProcurementModule: React.FC<ProcurementModuleProps> = ({ onBackToLanding }) => {
-  // --- Auth State ---
-  const [userRole, setUserRole] = useState<UserRole | null>(null);
-
+export const ProcurementModule: React.FC<ProcurementModuleProps> = ({ onBackToLanding, userRole }) => {
   // --- Project State ---
   const [projects, setProjects] = useState<Project[]>(() => {
     if (typeof window !== 'undefined') {
@@ -39,21 +36,13 @@ export const ProcurementModule: React.FC<ProcurementModuleProps> = ({ onBackToLa
   }, [projects]);
 
   // --- Handlers ---
-  const handleLogin = (role: UserRole) => {
-    setUserRole(role);
-  };
-
-  const handleLogout = () => {
-    setUserRole(null);
-  };
   
   const handleSwitchProject = () => {
     setCurrentProjectId(null);
   };
 
-  // Reset both Project and Role to return to the project selection screen (within module)
+  // Reset Project to return to the project selection screen (within module)
   const handleResetProject = () => {
-    setUserRole(null);
     setCurrentProjectId(null);
   };
 
@@ -125,8 +114,7 @@ export const ProcurementModule: React.FC<ProcurementModuleProps> = ({ onBackToLa
 
   // --- Render Flow ---
 
-  // 1. Select Project (Show ProjectSelectionPage but customized with Back Button if possible, 
-  // or wrap it here to include the Back Button to Portal)
+  // 1. Select Project
   if (!currentProjectId) {
     return (
       <div className="relative">
@@ -150,24 +138,7 @@ export const ProcurementModule: React.FC<ProcurementModuleProps> = ({ onBackToLa
     );
   }
 
-  // 2. Login
-  if (!userRole) {
-    return (
-        <div className="relative">
-            <div className="absolute top-4 left-4 z-50">
-                <button 
-                    onClick={onBackToLanding}
-                    className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-md border border-gray-200 text-gray-600 hover:text-blue-600 hover:border-blue-300 transition-colors"
-                >
-                    <ArrowLeft size={18} /> 回部門入口
-                </button>
-            </div>
-            <LoginPage onLogin={handleLogin} />
-        </div>
-    );
-  }
-
-  // 3. Main Application
+  // 2. Main Application
   const currentProjectName = projects.find(p => p.id === currentProjectId)?.name || '未命名專案';
 
   return (
@@ -207,8 +178,9 @@ export const ProcurementModule: React.FC<ProcurementModuleProps> = ({ onBackToLa
             <p className="text-xs text-slate-400">登入身份</p>
             <div className="flex justify-between items-center">
                <p className="font-bold text-white">{userRole}</p>
-               <button onClick={handleLogout} className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1">
-                 <LogOut size={10} /> 登出
+               {/* Sidebar logout now returns to landing page (dashboard) */}
+               <button onClick={onBackToLanding} className="text-xs text-slate-400 hover:text-white flex items-center gap-1">
+                 <ArrowLeft size={10} /> 離開
                </button>
             </div>
           </div>
@@ -239,7 +211,7 @@ export const ProcurementModule: React.FC<ProcurementModuleProps> = ({ onBackToLa
               currentProjectId={currentProjectId}
               currentProjectName={currentProjectName}
               userRole={userRole}
-              onLogout={handleLogout}
+              onLogout={onBackToLanding} // Map internal table logout to BackToLanding for now
               onBackToHome={handleResetProject}
               key={currentProjectId} // Force re-mount when project changes
             />

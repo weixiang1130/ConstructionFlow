@@ -1,5 +1,14 @@
 export type UserRole = 'ADMIN' | 'PLANNER' | 'EXECUTOR' | 'PROCUREMENT';
 
+export type Department = 'PROCUREMENT' | 'OPERATIONS' | 'QUALITY' | 'ADMIN';
+
+export interface UserProfile {
+  username: string;
+  name: string;
+  department: Department; // Which department they belong to
+  role: UserRole;         // Their permission level WITHIN that department (e.g., PLANNER, EXECUTOR)
+}
+
 export interface Project {
   id: string;
   name: string;
