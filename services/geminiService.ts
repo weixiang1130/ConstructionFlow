@@ -14,7 +14,17 @@ export const analyzeSchedule = async (rows: ProcurementRow[]): Promise<AnalysisR
       throw new Error("No data to analyze.");
     }
 
-    // Pre-calculate variance and status for the AI
+    const today = new Date();
+    // Set time to midnight for consistent comparison
+    today.setHours(0, 0, 0, 0);
+
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+
+    const thirtyDaysFuture = new Date(today);
+    thirtyDaysFuture.setDate(today.getDate() + 30);
+
+    // Filter and Map in one pass (conceptually)
     const dataForAI = validRows.map(row => {
       const variance = calculateVariance(row.scheduledRequestDate, row.actualRequestDate);
       let status = "正常";
@@ -35,13 +45,50 @@ export const analyzeSchedule = async (rows: ProcurementRow[]): Promise<AnalysisR
         status: status,
         remarks: row.remarks
       };
+    }).filter(item => {
+      // 1. Critical: Any delay
+      if (item.variance !== null && item.variance < 0) return true;
+
+      // 2. Recent Activity: Actual date within last 30 days
+      if (item.actual) {
+        const actualDate = new Date(item.actual);
+        if (!isNaN(actualDate.getTime()) && actualDate >= thirtyDaysAgo && actualDate <= today) {
+          return true;
+        }
+      }
+
+      // 3. Upcoming: Scheduled date within next 30 days
+      if (item.scheduled) {
+        const scheduledDate = new Date(item.scheduled);
+        if (!isNaN(scheduledDate.getTime()) && scheduledDate >= today && scheduledDate <= thirtyDaysFuture) {
+          return true;
+        }
+      }
+
+      // Otherwise, exclude to save tokens
+      return false;
     });
+
+    if (dataForAI.length === 0) {
+       // If filter removes everything, just send a minimal set or message
+       // But to ensure we get a valid response, let's send top 5 items if array is empty?
+       // Or just return a "No critical items" result directly without API call?
+       // Let's assume we proceed but maybe with a note, or if empty, simply return a default "All good".
+       return {
+         summary: "目前沒有延誤項目，且近 30 天內無相關進度或未來 30 天內無預定事項。",
+         criticalDelays: [],
+         recommendations: ["持續保持目前的進度控管。"]
+       };
+    }
 
     const prompt = `
       角色設定：你是一位嚴格且經驗豐富的「資深營建專案經理」(Senior Construction Project Manager)。
       
       數據來源 (Data):
       ${JSON.stringify(dataForAI, null, 2)}
+
+      注意：提供的數據已經過篩選，僅包含「已延誤」、「近期已完成」或「未來 30 天內需執行」的關鍵項目。請專注分析這些關鍵領域。
+      (Note: The provided data only includes delayed items, recently completed items, and upcoming tasks. Please focus your analysis on these critical areas.)
 
       任務：請分析上述數據，重點關注每個項目的「工程項目 (item)」、「備註 (remarks)」、「時程差異 (variance)」以及「狀態 (status)」。
 

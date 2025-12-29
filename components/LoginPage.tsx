@@ -8,9 +8,9 @@ interface LoginPageProps {
 
 const ROLES: { value: UserRole; label: string; description: string }[] = [
   { value: 'ADMIN', label: '管理員 (Admin)', description: '完整權限' },
-  { value: 'PLANNER', label: '工地排程 (Planner)', description: '工程項目與預定時間' },
-  { value: 'EXECUTOR', label: '工地執行 (Executor)', description: '實際時間回報' },
-  { value: 'PROCUREMENT', label: '採購發包 (Procurement)', description: '發包與廠商管理' },
+  { value: 'PLANNER', label: '工地排程 (採購部)', description: '工程項目與預定時間' },
+  { value: 'EXECUTOR', label: '工地執行 (工地單位)', description: '實際時間回報' },
+  { value: 'PROCUREMENT', label: '採購發包 (採購部)', description: '發包與廠商管理' },
 ];
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {

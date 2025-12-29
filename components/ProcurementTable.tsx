@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Download, Lock, RefreshCw, Calendar, ChevronLeft, ChevronRight, LogOut, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Download, Lock, RefreshCw, Calendar, ChevronLeft, ChevronRight, LogOut, Sparkles, Home } from 'lucide-react';
 import { ProcurementRow, UserRole } from '../types';
 import { calculateVariance, getVarianceColor } from '../utils';
 import { analyzeSchedule } from '../services/geminiService';
@@ -7,9 +7,9 @@ import { analyzeSchedule } from '../services/geminiService';
 // Role Definitions for Display
 const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   ADMIN: '管理員 (完整權限)',
-  PLANNER: '工地排程 (Site Planner)',
-  EXECUTOR: '工地執行 (Site Executor)',
-  PROCUREMENT: '採購發包 (Procurement)'
+  PLANNER: '工地排程 (採購部)',
+  EXECUTOR: '工地執行 (工地單位)',
+  PROCUREMENT: '採購發包 (採購部)'
 };
 
 // BufferedInput component
@@ -262,11 +262,13 @@ const STORAGE_KEY = 'procurement_schedule_data';
 
 interface ProcurementTableProps {
   currentProjectId: string;
+  currentProjectName: string;
   userRole: UserRole;
   onLogout: () => void;
+  onBackToHome: () => void;
 }
 
-export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProjectId, userRole, onLogout }) => {
+export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProjectId, currentProjectName, userRole, onLogout, onBackToHome }) => {
   
   // Load ALL rows from storage
   const [allRows, setAllRows] = useState<ProcurementRow[]>(() => {
@@ -307,9 +309,12 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
   }, [allRows]);
 
   const isEditable = (field: keyof ProcurementRow): boolean => {
+    // Lock Project Name for EVERYONE
+    if (field === 'projectName') return false;
+
     if (userRole === 'ADMIN') return true;
     switch (userRole) {
-      case 'PLANNER': return ['projectName', 'engineeringItem', 'scheduledRequestDate', 'siteOrganizer'].includes(field);
+      case 'PLANNER': return ['engineeringItem', 'scheduledRequestDate', 'siteOrganizer'].includes(field);
       case 'EXECUTOR': return ['actualRequestDate', 'remarks'].includes(field); 
       case 'PROCUREMENT': return ['procurementOrganizer', 'returnDate', 'returnReason', 'resubmissionDate', 'contractorConfirmDate', 'contractorName'].includes(field);
       default: return false;
@@ -324,7 +329,7 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
       id: crypto.randomUUID(),
       projectId: currentProjectId, // Assign current project ID
       remarks: '',
-      projectName: '',
+      projectName: currentProjectName, // Auto-populate with current project name
       engineeringItem: '',
       scheduledRequestDate: '',
       actualRequestDate: '',
@@ -537,6 +542,9 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
             )}
             <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors shadow-sm text-sm font-medium">
               <Download size={16} /> 匯出 CSV
+            </button>
+            <button onClick={onBackToHome} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded hover:bg-slate-200 transition-colors shadow-sm text-sm font-medium ml-2">
+              <Home size={16} /> 回到首頁
             </button>
              <button onClick={onLogout} className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors shadow-sm text-sm font-medium ml-2">
               <LogOut size={16} /> 登出

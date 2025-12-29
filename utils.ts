@@ -4,6 +4,11 @@ export const calculateVariance = (scheduled: string, actual: string): number | n
   const scheduledDate = new Date(scheduled);
   const actualDate = new Date(actual);
 
+  // Check for invalid dates (e.g., "2023-02-30" or malformed strings)
+  if (isNaN(scheduledDate.getTime()) || isNaN(actualDate.getTime())) {
+    return null;
+  }
+
   // Reset hours to ensure pure date calculation
   scheduledDate.setHours(0, 0, 0, 0);
   actualDate.setHours(0, 0, 0, 0);

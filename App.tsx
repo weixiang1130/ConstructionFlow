@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { ProcurementTable } from './components/ProcurementTable';
 import { LoginPage } from './components/LoginPage';
+import { ProjectSelectionPage } from './components/ProjectSelectionPage';
 import { UserRole, Project } from './types';
-import { Layout, Plus, FolderOpen, Folder, X, Pencil } from 'lucide-react';
+import { Layout, FolderOpen, X, Pencil, ArrowLeftRight, LogOut } from 'lucide-react';
 
 const PROJECT_STORAGE_KEY = 'procurement_projects_list';
+const ROW_STORAGE_KEY = 'procurement_schedule_data';
 
 const App: React.FC = () => {
   // --- Auth State ---
@@ -20,13 +22,10 @@ const App: React.FC = () => {
     return [{ id: 'default-project', name: '預設工程專案', createdAt: new Date().toISOString() }];
   });
 
-  const [currentProjectId, setCurrentProjectId] = useState<string>(projects[0]?.id || 'default-project');
+  // Start with NULL to force selection
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
 
-  // --- Modal State (Create) ---
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [newProjectName, setNewProjectName] = useState('');
-
-  // --- Modal State (Edit) ---
+  // --- Modal State (Edit Project Name) ---
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingProjectName, setEditingProjectName] = useState('');
 
@@ -43,28 +42,32 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setUserRole(null);
   };
-
-  // Create Project Handlers
-  const openCreateProjectModal = () => {
-    setNewProjectName('');
-    setIsCreateModalOpen(true);
+  
+  const handleSwitchProject = () => {
+    setCurrentProjectId(null);
+    // Optional: Keep user logged in or logout?
+    // Requirement implies "Select Project -> Select Role", so logically we might want to re-select role or keep it.
+    // Usually switching project doesn't require re-login. We'll keep the role for convenience unless specified.
   };
 
-  const handleCreateProjectSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newProjectName && newProjectName.trim()) {
-      const newProject: Project = {
-        id: crypto.randomUUID(),
-        name: newProjectName.trim(),
-        createdAt: new Date().toISOString()
-      };
-      setProjects([...projects, newProject]);
-      setCurrentProjectId(newProject.id); // Switch to new project
-      setIsCreateModalOpen(false);
-    }
+  // Reset both Project and Role to return to the very beginning
+  const handleBackToHome = () => {
+    setUserRole(null);
+    setCurrentProjectId(null);
   };
 
-  // Edit Project Handlers
+  // Create Project (Called from Selection Page)
+  const handleCreateProject = (name: string) => {
+    const newProject: Project = {
+      id: crypto.randomUUID(),
+      name: name,
+      createdAt: new Date().toISOString()
+    };
+    setProjects([...projects, newProject]);
+    setCurrentProjectId(newProject.id); // Automatically select
+  };
+
+  // Edit Project Handlers (For Current Project)
   const openEditProjectModal = () => {
     const currentProject = projects.find(p => p.id === currentProjectId);
     if (currentProject) {
@@ -83,57 +86,102 @@ const App: React.FC = () => {
     }
   };
 
-  // --- Render ---
+  // Delete Project Handler
+  const handleDeleteProject = (projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); 
+
+    if (!window.confirm("確定要刪除此專案及其所有資料嗎？此動作無法復原。")) {
+      return;
+    }
+
+    // 1. Data Cleanup
+    try {
+      const savedRows = localStorage.getItem(ROW_STORAGE_KEY);
+      if (savedRows) {
+        const rows = JSON.parse(savedRows);
+        const filteredRows = rows.filter((r: any) => r.projectId !== projectId);
+        localStorage.setItem(ROW_STORAGE_KEY, JSON.stringify(filteredRows));
+      }
+    } catch (error) {
+      console.error("Error cleaning up project data:", error);
+    }
+
+    // 2. Update Projects State
+    const updatedProjects = projects.filter(p => p.id !== projectId);
+    
+    // 3. Handle Selection Logic
+    if (updatedProjects.length === 0) {
+      // If no projects remain, create a default one to avoid empty state on refresh?
+      // Or just leave it empty and let ProjectSelectionPage handle "Create".
+      // Let's create a default one if empty so the user isn't lost, or just allow empty array.
+      // ProjectSelectionPage handles empty array fine (just shows Create button).
+      setProjects([]);
+    } else {
+      setProjects(updatedProjects);
+    }
+
+    // If we deleted the currently selected project, go back to selection
+    if (projectId === currentProjectId) {
+      setCurrentProjectId(null);
+    }
+  };
+
+  // --- Render Flow ---
+
+  // 1. Select Project
+  if (!currentProjectId) {
+    return (
+      <ProjectSelectionPage 
+        projects={projects} 
+        onSelect={setCurrentProjectId} 
+        onCreate={handleCreateProject} 
+        onDelete={handleDeleteProject}
+      />
+    );
+  }
+
+  // 2. Login
   if (!userRole) {
     return <LoginPage onLogin={handleLogin} />;
   }
 
+  // 3. Main Application
   const currentProjectName = projects.find(p => p.id === currentProjectId)?.name || '未命名專案';
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row">
-      {/* Sidebar - Project Selector */}
+      {/* Sidebar - Simplified */}
       <aside className="w-full md:w-64 bg-slate-900 text-slate-300 flex flex-col h-auto md:h-screen sticky top-0 z-20 shadow-xl">
         <div className="p-4 border-b border-slate-700 flex items-center gap-2 text-white">
           <Layout className="text-blue-400" />
           <h1 className="text-lg font-bold tracking-tight">工程採購系統</h1>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
-          <div>
-            <div className="flex items-center justify-between mb-2 px-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">專案列表</h3>
+        <div className="flex-1 p-4 space-y-6">
+           <div className="bg-slate-800 rounded-lg p-4 border border-slate-700">
+              <p className="text-xs text-slate-500 uppercase mb-1">目前專案</p>
+              <div className="flex items-center gap-2 text-white font-bold text-lg mb-3 break-all">
+                <FolderOpen size={20} className="text-blue-400 shrink-0" />
+                {currentProjectName}
+              </div>
               <button 
-                onClick={openCreateProjectModal}
-                className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white transition-colors"
-                title="建立新專案"
+                onClick={handleSwitchProject}
+                className="w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white text-sm py-2 rounded transition-colors"
               >
-                <Plus size={16} />
+                <ArrowLeftRight size={14} /> 切換專案
               </button>
-            </div>
-            <div className="space-y-1">
-              {projects.map(project => (
-                <button
-                  key={project.id}
-                  onClick={() => setCurrentProjectId(project.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-all ${
-                    currentProjectId === project.id 
-                      ? 'bg-blue-600 text-white font-medium shadow-md' 
-                      : 'hover:bg-slate-800 hover:text-white'
-                  }`}
-                >
-                  {currentProjectId === project.id ? <FolderOpen size={18} /> : <Folder size={18} />}
-                  <span className="truncate">{project.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+           </div>
         </div>
 
         <div className="p-4 border-t border-slate-700 bg-slate-900">
           <div className="bg-slate-800 rounded p-3 mb-2">
             <p className="text-xs text-slate-400">登入身份</p>
-            <p className="font-bold text-white">{userRole}</p>
+            <div className="flex justify-between items-center">
+               <p className="font-bold text-white">{userRole}</p>
+               <button onClick={handleLogout} className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1">
+                 <LogOut size={10} /> 登出
+               </button>
+            </div>
           </div>
         </div>
       </aside>
@@ -160,8 +208,11 @@ const App: React.FC = () => {
           <div className="flex-1 h-full min-h-0">
             <ProcurementTable 
               currentProjectId={currentProjectId}
+              currentProjectName={currentProjectName}
               userRole={userRole}
               onLogout={handleLogout}
+              onBackToHome={handleBackToHome}
+              key={currentProjectId} // Force re-mount when project changes
             />
           </div>
         </div>
@@ -169,53 +220,6 @@ const App: React.FC = () => {
         <footer className="bg-white border-t border-gray-200 py-2 text-center text-gray-500 text-xs">
           &copy; {new Date().getFullYear()} Construction Procurement System.
         </footer>
-
-        {/* Create Project Modal */}
-        {isCreateModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
-              <div className="flex justify-between items-center p-4 border-b">
-                <h3 className="text-lg font-bold text-gray-800">建立新專案</h3>
-                <button onClick={() => setIsCreateModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                  <X size={20} />
-                </button>
-              </div>
-              <form onSubmit={handleCreateProjectSubmit}>
-                <div className="p-4 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">專案名稱</label>
-                    <input 
-                      type="text" 
-                      value={newProjectName}
-                      onChange={(e) => setNewProjectName(e.target.value)}
-                      placeholder="例如：C3-景觀工程"
-                      className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                      autoFocus
-                    />
-                  </div>
-                </div>
-                <div className="p-4 border-t bg-gray-50 flex justify-end gap-2">
-                  <button 
-                    type="button" 
-                    onClick={() => setIsCreateModalOpen(false)}
-                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded font-medium text-sm"
-                  >
-                    取消
-                  </button>
-                  <button 
-                    type="submit"
-                    disabled={!newProjectName.trim()}
-                    className={`px-4 py-2 text-white rounded font-medium text-sm transition-colors ${
-                      newProjectName.trim() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-300 cursor-not-allowed'
-                    }`}
-                  >
-                    建立
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
 
         {/* Edit Project Modal */}
         {isEditModalOpen && (
