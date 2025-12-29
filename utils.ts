@@ -1,0 +1,27 @@
+export const calculateVariance = (scheduled: string, actual: string): number | null => {
+  if (!scheduled || !actual) return null;
+
+  const scheduledDate = new Date(scheduled);
+  const actualDate = new Date(actual);
+
+  // Reset hours to ensure pure date calculation
+  scheduledDate.setHours(0, 0, 0, 0);
+  actualDate.setHours(0, 0, 0, 0);
+
+  // Formula: -(Actual - Scheduled) = Scheduled - Actual
+  const diffTime = scheduledDate.getTime() - actualDate.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  return diffDays;
+};
+
+export const getVarianceColor = (variance: number | null): string => {
+  if (variance === null) return 'text-gray-400';
+  if (variance < 0) return 'text-red-600 font-bold'; // Late
+  if (variance > 0) return 'text-green-600 font-bold'; // Early
+  return 'text-gray-800'; // On time
+};
+
+export const formatDateForInput = (date: Date): string => {
+  return date.toISOString().split('T')[0];
+};
