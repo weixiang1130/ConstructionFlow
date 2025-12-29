@@ -175,18 +175,39 @@ const DateInput = ({
   disabled?: boolean;
   onOpenPicker: () => void;
 }) => {
-  // Ensure we only pass valid YYYY-MM-DD or empty string to the input
-  const isValidDate = (v: string) => v && /^\d{4}-\d{2}-\d{2}$/.test(v);
-  const displayValue = isValidDate(value) ? value : '';
+  const [isValid, setIsValid] = useState(true);
+
+  // Sync validation state with value prop updates
+  useEffect(() => {
+    if (!value) {
+      setIsValid(true);
+      return;
+    }
+    // Check if the current value matches the format
+    setIsValid(/^\d{4}-\d{2}-\d{2}$/.test(value));
+  }, [value]);
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    // Validate on blur
+    if (val && !/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+      setIsValid(false);
+    } else {
+      setIsValid(true);
+    }
+  };
 
   return (
     <div className="flex items-center w-full gap-1">
       <input
-        type="date"
-        value={displayValue}
+        type="text"
+        value={value || ''}
         disabled={disabled}
+        placeholder="YYYY-MM-DD"
+        maxLength={10}
         onChange={(e) => onChange(e.target.value)}
-        className={`${className} flex-1 min-w-0 ${!disabled ? 'cursor-pointer' : ''}`}
+        onBlur={handleBlur}
+        className={`${className} flex-1 min-w-0 ${!disabled ? 'cursor-text' : ''} ${!isValid ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : ''}`}
       />
       {!disabled && (
         <button
@@ -405,7 +426,7 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
     const editable = isEditable(field);
     const base = "w-full p-2 rounded outline-none transition-all border border-transparent";
     if (editable) {
-      return `${base} bg-white hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 shadow-sm`;
+      return `${base} bg-white text-gray-900 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 shadow-sm`;
     }
     return `${base} bg-gray-100 text-gray-400 cursor-not-allowed select-none`;
   };
