@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Calendar, ChevronLeft, ChevronRight, Activity, AlertCircle, CheckCircle2, Download, ChevronDown, FolderOpen } from 'lucide-react';
+import { Plus, Trash2, Calendar, ChevronLeft, ChevronRight, Activity, AlertCircle, CheckCircle2, Download, ChevronDown, FolderOpen, TrendingUp, Layers } from 'lucide-react';
 import { OperationRow } from '../types';
 import { calculateDuration, calculateVariance } from '../utils';
 
@@ -99,11 +99,6 @@ const CustomDatePicker = ({
   const daysInCurrentMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
 
-  const days = [];
-  for (let i = 0; i < firstDay; i++) {
-    days.push(<div key={`empty-${i}`} className="h-8"></div>);
-  }
-
   const handlePrevMonth = () => setViewDate(new Date(year, month - 1, 1));
   const handleNextMonth = () => setViewDate(new Date(year, month + 1, 1));
   const handleToday = () => setViewDate(new Date());
@@ -113,6 +108,11 @@ const CustomDatePicker = ({
     const d = day.toString().padStart(2, '0');
     onSelect(`${year}-${m}-${d}`);
   };
+
+  const days = [];
+  for (let i = 0; i < firstDay; i++) {
+    days.push(<div key={`empty-${i}`} className="h-8"></div>);
+  }
 
   for (let i = 1; i <= daysInCurrentMonth; i++) {
     const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${i.toString().padStart(2, '0')}`;
@@ -343,6 +343,62 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({ currentProject
     return Math.round(pct);
   };
 
+  const calculateOverallProjectProgress = (rows: OperationRow[]): number => {
+    // 1. Determine Project Start: Earliest Actual Start of ANY item
+    // We look at the whole project to see when it actually began.
+    const actualStartDates = rows
+      .map(r => r.actualStartDate)
+      .filter(d => d && !isNaN(new Date(d).getTime()))
+      .map(d => new Date(d).getTime());
+
+    if (actualStartDates.length === 0) return 0;
+    const projectStart = Math.min(...actualStartDates);
+
+    // 2. Determine Project Target: The *Last Item* of '交屋驗收' (Handover) category
+    const handoverRows = rows.filter(r => r.category === '交屋驗收');
+    
+    // Fallback: If no handover rows, use the very last row of the project
+    const targetRow = handoverRows.length > 0 
+      ? handoverRows[handoverRows.length - 1] 
+      : rows[rows.length - 1];
+
+    if (!targetRow) return 0;
+
+    // 3. Completion Check: Has the Handover Item actually finished?
+    if (targetRow.actualEndDate && !isNaN(new Date(targetRow.actualEndDate).getTime())) {
+      return 100; // Fully Completed
+    }
+
+    // 4. Get Benchmark Date: Scheduled End Date of that Handover Item
+    const scheduledEndStr = targetRow.scheduledEndDate;
+    if (!scheduledEndStr || isNaN(new Date(scheduledEndStr).getTime())) return 0;
+    
+    const projectTarget = new Date(scheduledEndStr).getTime();
+
+    // 5. Calculate Progress Percentage
+    const today = new Date().setHours(0,0,0,0);
+    
+    // Total project duration based on (Handover Scheduled End - Project Start)
+    const totalDuration = projectTarget - projectStart;
+    
+    // If invalid duration (e.g., start > end), default to 0
+    if (totalDuration <= 0) return 0;
+
+    const elapsed = today - projectStart;
+    
+    // If we are before start date, 0%
+    if (elapsed < 0) return 0;
+
+    let pct = (elapsed / totalDuration) * 100;
+    
+    // Cap at 99% if not marked as "Actual End" (completed)
+    // This allows the user to see they are "at the end" without falsely claiming completion.
+    if (pct > 99) pct = 99;
+    if (pct < 0) pct = 0;
+
+    return Math.round(pct);
+  };
+
   const StatusIndicator = ({ variance }: { variance: number | null }) => {
     if (variance === null) return <div className="text-gray-300 text-xs">-</div>;
 
@@ -413,6 +469,8 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({ currentProject
     }
   };
 
+  const overallProgress = calculateOverallProjectProgress(displayRows);
+
   return (
     <div className="flex flex-col h-full bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200">
       <CustomDatePicker 
@@ -422,18 +480,48 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({ currentProject
         onClose={() => setPickerState(prev => ({ ...prev, isOpen: false }))}
       />
 
-      <div className="bg-white border-b border-gray-200 p-4 flex justify-between items-center">
-        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <Activity className="text-indigo-600" />
-            全程營運管理控制表
-        </h2>
-        <div className="flex items-center gap-2">
-          <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors shadow-sm text-sm font-medium">
-            <Download size={16} /> 匯出 Excel
-          </button>
-          <button onClick={() => addRow('')} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors shadow-sm text-sm font-medium">
-            <Plus size={16} /> 新增未分類項目
-          </button>
+      <div className="bg-white border-b border-gray-200">
+        <div className="p-4 flex justify-between items-center">
+          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <Activity className="text-indigo-600" />
+              全程營運管理控制表
+          </h2>
+          <div className="flex items-center gap-2">
+            <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors shadow-sm text-sm font-medium">
+              <Download size={16} /> 匯出 Excel
+            </button>
+            <button onClick={() => addRow('')} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors shadow-sm text-sm font-medium">
+              <Plus size={16} /> 新增未分類項目
+            </button>
+          </div>
+        </div>
+        
+        {/* Dashboard Summary */}
+        <div className="px-4 pb-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+               <div>
+                 <p className="text-gray-500 text-sm font-medium">專案總項目</p>
+                 <p className="text-2xl font-bold mt-1 text-indigo-600">{displayRows.length}</p>
+               </div>
+               <div className="p-3 rounded-full bg-indigo-50">
+                 <Layers className="text-indigo-600" size={24} />
+               </div>
+             </div>
+
+             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+               <div>
+                 <p className="text-gray-500 text-sm font-medium">全程預定進度</p>
+                 <div className="flex items-end gap-2">
+                    <p className="text-2xl font-bold mt-1 text-emerald-600">{overallProgress}%</p>
+                    <span className="text-xs text-gray-400 mb-1">(依據交屋驗收排程)</span>
+                 </div>
+               </div>
+               <div className="p-3 rounded-full bg-emerald-50">
+                 <TrendingUp className="text-emerald-600" size={24} />
+               </div>
+             </div>
+          </div>
         </div>
       </div>
 
