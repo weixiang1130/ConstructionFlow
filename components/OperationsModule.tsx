@@ -66,7 +66,7 @@ export const OperationsModule: React.FC<OperationsModuleProps> = ({ onBackToLand
           onSelect={setCurrentProjectId}
           onCreate={handleCreateProject}
           onDelete={handleDeleteProject}
-          title="內/外案選擇" 
+          title="內/外案選擇 (營管)" 
         />
       </div>
     );

@@ -144,6 +144,7 @@ export const ProcurementModule: React.FC<ProcurementModuleProps> = ({ onBackToLa
           onSelect={setCurrentProjectId} 
           onCreate={handleCreateProject} 
           onDelete={handleDeleteProject}
+          title="內/外案選擇 (採購)"
         />
       </div>
     );
