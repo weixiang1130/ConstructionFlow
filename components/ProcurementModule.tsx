@@ -203,7 +203,6 @@ export const ProcurementModule: React.FC<ProcurementModuleProps> = ({ onBackToLa
                  <Pencil size={18} />
                </button>
              </div>
-             <p className="text-sm text-gray-500">專案 ID: {currentProjectId}</p>
           </div>
           
           <div className="flex-1 h-full min-h-0">

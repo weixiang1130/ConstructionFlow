@@ -1,9 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Calendar, ChevronLeft, ChevronRight, Activity, AlertCircle, CheckCircle2, Download } from 'lucide-react';
+import { Plus, Trash2, Calendar, ChevronLeft, ChevronRight, Activity, AlertCircle, CheckCircle2, Download, ChevronDown, FolderOpen } from 'lucide-react';
 import { OperationRow } from '../types';
 import { calculateDuration, calculateVariance } from '../utils';
 
 const STORAGE_KEY = 'operations_control_data';
+
+const OPERATION_STAGES = [
+  '設計階段', 
+  '假設工程', 
+  '地工工程', 
+  '結構工程', 
+  '外牆工程', 
+  '內裝工程', 
+  '設備工程', 
+  '使用執照', 
+  '交屋驗收'
+];
 
 // --- Shared Helper Components (Duplicated to maintain independence) ---
 
@@ -87,6 +99,11 @@ const CustomDatePicker = ({
   const daysInCurrentMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
 
+  const days = [];
+  for (let i = 0; i < firstDay; i++) {
+    days.push(<div key={`empty-${i}`} className="h-8"></div>);
+  }
+
   const handlePrevMonth = () => setViewDate(new Date(year, month - 1, 1));
   const handleNextMonth = () => setViewDate(new Date(year, month + 1, 1));
   const handleToday = () => setViewDate(new Date());
@@ -97,10 +114,6 @@ const CustomDatePicker = ({
     onSelect(`${year}-${m}-${d}`);
   };
 
-  const days = [];
-  for (let i = 0; i < firstDay; i++) {
-    days.push(<div key={`empty-${i}`} className="h-8"></div>);
-  }
   for (let i = 1; i <= daysInCurrentMonth; i++) {
     const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${i.toString().padStart(2, '0')}`;
     const isSelected = initialDate === dateStr;
@@ -222,6 +235,13 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({ currentProject
     return [];
   });
 
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    OPERATION_STAGES.forEach(stage => initial[stage] = true);
+    initial['Uncategorized'] = true;
+    return initial;
+  });
+
   const [pickerState, setPickerState] = useState<{
     isOpen: boolean;
     rowId: string | null;
@@ -235,11 +255,11 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({ currentProject
     localStorage.setItem(STORAGE_KEY, JSON.stringify(allRows));
   }, [allRows]);
 
-  const addRow = () => {
+  const addRow = (category: string = '') => {
     const newRow: OperationRow = {
       id: crypto.randomUUID(),
       projectId: currentProjectId,
-      category: '',
+      category: category,
       item: '',
       scheduledStartDate: '',
       scheduledEndDate: '',
@@ -248,6 +268,13 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({ currentProject
       remarks: ''
     };
     setAllRows([...allRows, newRow]);
+    
+    // Ensure the group is expanded when adding
+    if (category) {
+        setExpandedGroups(prev => ({...prev, [category]: true}));
+    } else {
+        setExpandedGroups(prev => ({...prev, ['Uncategorized']: true}));
+    }
   };
 
   const deleteRow = (id: string) => {
@@ -261,6 +288,10 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({ currentProject
       if (row.id === id) return { ...row, [field]: value };
       return row;
     }));
+  };
+
+  const toggleGroup = (group: string) => {
+    setExpandedGroups(prev => ({ ...prev, [group]: !prev[group] }));
   };
 
   const handleOpenPicker = (rowId: string, field: keyof OperationRow, currentDate: string) => {
@@ -288,7 +319,6 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({ currentProject
     today.setHours(0,0,0,0);
     startDate.setHours(0,0,0,0);
 
-    // If haven't started yet
     if (today < startDate) return 0;
 
     let targetEndDate: Date;
@@ -297,12 +327,12 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({ currentProject
     } else if (scheduledEnd) {
         targetEndDate = new Date(scheduledEnd);
     } else {
-        return 0; // No end date reference
+        return 0;
     }
     targetEndDate.setHours(0,0,0,0);
 
     const totalDuration = targetEndDate.getTime() - startDate.getTime();
-    if (totalDuration <= 0) return 100; // Done or invalid zero duration
+    if (totalDuration <= 0) return 100;
 
     const elapsed = today.getTime() - startDate.getTime();
     
@@ -315,12 +345,6 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({ currentProject
 
   const StatusIndicator = ({ variance }: { variance: number | null }) => {
     if (variance === null) return <div className="text-gray-300 text-xs">-</div>;
-
-    // Logic: 
-    // Variance >= 0 -> Green
-    // -10 < Variance < 0 -> Yellow (Late 1-10 days)
-    // -29 < Variance <= -10 -> Orange (Late 11-29 days)
-    // Variance <= -30 -> Red (Late 30+ days)
 
     if (variance >= 0) {
       return <div className="flex items-center justify-center"><CheckCircle2 className="text-green-500" size={20} /></div>;
@@ -350,7 +374,6 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({ currentProject
         const variance = calculateVariance(row.scheduledEndDate, row.actualEndDate);
         const progressPct = calculateProgress(row.actualStartDate, row.actualEndDate, row.scheduledEndDate);
         
-        // Status Text Logic
         let status = "正常";
         if (variance !== null && variance < 0) {
             if (variance <= -30) status = "嚴重落後 (紅)";
@@ -376,7 +399,7 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({ currentProject
     ].join('\n');
 
     const dateStr = new Date().toISOString().split('T')[0];
-    const bom = "\uFEFF"; // Add BOM for Chinese character support in Excel
+    const bom = "\uFEFF";
     const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     if (link.download !== undefined) {
@@ -408,8 +431,8 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({ currentProject
           <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors shadow-sm text-sm font-medium">
             <Download size={16} /> 匯出 Excel
           </button>
-          <button onClick={addRow} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors shadow-sm text-sm font-medium">
-            <Plus size={16} /> 新增項目
+          <button onClick={() => addRow('')} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors shadow-sm text-sm font-medium">
+            <Plus size={16} /> 新增未分類項目
           </button>
         </div>
       </div>
@@ -419,7 +442,6 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({ currentProject
           <thead className="sticky top-0 z-10 shadow-sm">
             <tr className="divide-x divide-gray-300 border-b border-gray-300">
               <th className="bg-gray-100 p-2 min-w-[50px] font-bold text-gray-600">操作</th>
-              <th className="bg-gray-100 p-2 font-bold text-gray-700">區分</th>
               <th className="bg-gray-100 p-2 font-bold text-gray-700">工程項目</th>
               {/* Scheduled Group */}
               <th className="bg-blue-100 p-2 font-bold text-blue-900 border-b-2 border-blue-200" colSpan={3}>預定進度</th>
@@ -430,7 +452,6 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({ currentProject
             </tr>
             <tr className="divide-x divide-gray-300 border-b border-gray-300 text-xs">
               <th className="bg-gray-50 p-2"></th>
-              <th className="bg-gray-50 p-2 min-w-[120px] font-semibold text-gray-600">階段/類別</th>
               <th className="bg-gray-50 p-2 min-w-[150px] font-semibold text-gray-600">項目說明</th>
               
               <th className="bg-blue-50 p-2 min-w-[130px] font-semibold text-blue-800">開始日期</th>
@@ -448,78 +469,122 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({ currentProject
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 bg-white">
-            {displayRows.map(row => {
-              const scheduledDuration = calculateDuration(row.scheduledStartDate, row.scheduledEndDate);
-              const actualDuration = calculateDuration(row.actualStartDate, row.actualEndDate);
-              // Variance = PreEnd - ActEnd = -(Act - Pre)
-              // We use standard utils logic: scheduled - actual (days diff).
-              // If actual is later (larger timestamp), result is negative (Late).
-              const variance = calculateVariance(row.scheduledEndDate, row.actualEndDate);
-              const progressPct = calculateProgress(row.actualStartDate, row.actualEndDate, row.scheduledEndDate);
+            {[...OPERATION_STAGES, 'Uncategorized'].map(stage => {
+               const isUncategorized = stage === 'Uncategorized';
+               const groupRows = displayRows.filter(r => 
+                 isUncategorized 
+                 ? (!r.category || !OPERATION_STAGES.includes(r.category))
+                 : r.category === stage
+               );
+               const isExpanded = expandedGroups[stage];
 
-              return (
-                <tr key={row.id} className="hover:bg-gray-50 group">
-                  <td className="p-2 text-center border-r border-gray-200">
-                     <button onClick={() => deleteRow(row.id)} className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
-                        <Trash2 size={16} />
-                     </button>
-                  </td>
-                  <td className="p-1 border-r border-gray-100">
-                    <BufferedInput value={row.category} onCommit={(v) => updateRow(row.id, 'category', v)} className={getInputClass()} placeholder="階段..." />
-                  </td>
-                  <td className="p-1 border-r border-gray-100">
-                    <BufferedInput value={row.item} onCommit={(v) => updateRow(row.id, 'item', v)} className={getInputClass()} placeholder="項目名稱" />
-                  </td>
+               // If Uncategorized is empty, don't render header
+               if (isUncategorized && groupRows.length === 0) return null;
 
-                  {/* Scheduled */}
-                  <td className="p-1 border-r border-blue-50 bg-blue-50/30">
-                    <DateInput value={row.scheduledStartDate} onChange={(v) => updateRow(row.id, 'scheduledStartDate', v)} className={getInputClass(true)} onOpenPicker={() => handleOpenPicker(row.id, 'scheduledStartDate', row.scheduledStartDate)} />
-                  </td>
-                  <td className="p-1 border-r border-blue-50 bg-blue-50/30">
-                    <DateInput value={row.scheduledEndDate} onChange={(v) => updateRow(row.id, 'scheduledEndDate', v)} className={getInputClass(true)} onOpenPicker={() => handleOpenPicker(row.id, 'scheduledEndDate', row.scheduledEndDate)} />
-                  </td>
-                  <td className="p-2 text-center border-r border-blue-50 bg-blue-50/30 text-blue-700 font-medium">
-                    {scheduledDuration || '-'}
-                  </td>
+               return (
+                 <React.Fragment key={stage}>
+                   {/* Section Header */}
+                   <tr className="bg-slate-100 border-b border-gray-300">
+                     <td colSpan={12} className="p-0">
+                       <div className="flex items-center justify-between px-3 py-2">
+                         <div 
+                           className="flex items-center gap-2 cursor-pointer select-none"
+                           onClick={() => toggleGroup(stage)}
+                         >
+                            <div className="text-slate-500">
+                                {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                            </div>
+                            <span className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                {isUncategorized ? '未分類項目' : stage}
+                                <span className="bg-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-full">{groupRows.length}</span>
+                            </span>
+                         </div>
+                         
+                         {/* Only show 'Add Item to Category' for defined stages */}
+                         {!isUncategorized && (
+                            <button 
+                                onClick={() => addRow(stage)}
+                                className="flex items-center gap-1 text-xs bg-white border border-gray-300 text-gray-600 hover:text-indigo-600 hover:border-indigo-400 px-2 py-1 rounded shadow-sm transition-colors"
+                                title={`新增項目至 ${stage}`}
+                            >
+                                <Plus size={14} /> 新增項目
+                            </button>
+                         )}
+                       </div>
+                     </td>
+                   </tr>
 
-                  {/* Actual */}
-                  <td className="p-1 border-r border-yellow-50 bg-yellow-50/30">
-                     <DateInput value={row.actualStartDate} onChange={(v) => updateRow(row.id, 'actualStartDate', v)} className={getInputClass(true)} onOpenPicker={() => handleOpenPicker(row.id, 'actualStartDate', row.actualStartDate)} />
-                  </td>
-                  <td className="p-1 border-r border-yellow-50 bg-yellow-50/30">
-                     <DateInput value={row.actualEndDate} onChange={(v) => updateRow(row.id, 'actualEndDate', v)} className={getInputClass(true)} onOpenPicker={() => handleOpenPicker(row.id, 'actualEndDate', row.actualEndDate)} />
-                  </td>
-                  <td className="p-2 text-center border-r border-yellow-50 bg-yellow-50/30 text-yellow-700 font-medium">
-                    {actualDuration || '-'}
-                  </td>
+                   {/* Rows */}
+                   {isExpanded && groupRows.map(row => {
+                      const scheduledDuration = calculateDuration(row.scheduledStartDate, row.scheduledEndDate);
+                      const actualDuration = calculateDuration(row.actualStartDate, row.actualEndDate);
+                      const variance = calculateVariance(row.scheduledEndDate, row.actualEndDate);
+                      const progressPct = calculateProgress(row.actualStartDate, row.actualEndDate, row.scheduledEndDate);
 
-                  {/* Indicators */}
-                  <td className={`p-2 text-center border-r border-gray-100 font-bold ${variance !== null && variance < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    {variance !== null ? (variance > 0 ? `+${variance}` : variance) : '-'}
-                  </td>
-                  <td className="p-2 text-center border-r border-gray-100">
-                    <StatusIndicator variance={variance} />
-                  </td>
-                  <td className="p-2 text-center border-r border-gray-100">
-                     <div className="flex items-center gap-2">
-                        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-indigo-500" style={{ width: `${progressPct}%` }}></div>
-                        </div>
-                        <span className="text-xs font-medium text-gray-600 w-8">{progressPct}%</span>
-                     </div>
-                  </td>
-                  <td className="p-1">
-                    <BufferedInput value={row.remarks} onCommit={(v) => updateRow(row.id, 'remarks', v)} className={getInputClass()} placeholder="備註..." />
-                  </td>
-                </tr>
-              );
+                      return (
+                        <tr key={row.id} className="hover:bg-indigo-50/30 group transition-colors">
+                            <td className="p-2 text-center border-r border-gray-200">
+                                <button onClick={() => deleteRow(row.id)} className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                                    <Trash2 size={16} />
+                                </button>
+                            </td>
+                            {/* Removed Category Column */}
+                            <td className="p-1 border-r border-gray-100 pl-4">
+                                <BufferedInput value={row.item} onCommit={(v) => updateRow(row.id, 'item', v)} className={getInputClass()} placeholder="項目名稱" />
+                            </td>
+
+                            {/* Scheduled */}
+                            <td className="p-1 border-r border-blue-50 bg-blue-50/30">
+                                <DateInput value={row.scheduledStartDate} onChange={(v) => updateRow(row.id, 'scheduledStartDate', v)} className={getInputClass(true)} onOpenPicker={() => handleOpenPicker(row.id, 'scheduledStartDate', row.scheduledStartDate)} />
+                            </td>
+                            <td className="p-1 border-r border-blue-50 bg-blue-50/30">
+                                <DateInput value={row.scheduledEndDate} onChange={(v) => updateRow(row.id, 'scheduledEndDate', v)} className={getInputClass(true)} onOpenPicker={() => handleOpenPicker(row.id, 'scheduledEndDate', row.scheduledEndDate)} />
+                            </td>
+                            <td className="p-2 text-center border-r border-blue-50 bg-blue-50/30 text-blue-700 font-medium">
+                                {scheduledDuration || '-'}
+                            </td>
+
+                            {/* Actual */}
+                            <td className="p-1 border-r border-yellow-50 bg-yellow-50/30">
+                                <DateInput value={row.actualStartDate} onChange={(v) => updateRow(row.id, 'actualStartDate', v)} className={getInputClass(true)} onOpenPicker={() => handleOpenPicker(row.id, 'actualStartDate', row.actualStartDate)} />
+                            </td>
+                            <td className="p-1 border-r border-yellow-50 bg-yellow-50/30">
+                                <DateInput value={row.actualEndDate} onChange={(v) => updateRow(row.id, 'actualEndDate', v)} className={getInputClass(true)} onOpenPicker={() => handleOpenPicker(row.id, 'actualEndDate', row.actualEndDate)} />
+                            </td>
+                            <td className="p-2 text-center border-r border-yellow-50 bg-yellow-50/30 text-yellow-700 font-medium">
+                                {actualDuration || '-'}
+                            </td>
+
+                            {/* Indicators */}
+                            <td className={`p-2 text-center border-r border-gray-100 font-bold ${variance !== null && variance < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                {variance !== null ? (variance > 0 ? `+${variance}` : variance) : '-'}
+                            </td>
+                            <td className="p-2 text-center border-r border-gray-100">
+                                <StatusIndicator variance={variance} />
+                            </td>
+                            <td className="p-2 text-center border-r border-gray-100">
+                                <div className="flex items-center gap-2">
+                                    <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                        <div className="h-full bg-indigo-500" style={{ width: `${progressPct}%` }}></div>
+                                    </div>
+                                    <span className="text-xs font-medium text-gray-600 w-8">{progressPct}%</span>
+                                </div>
+                            </td>
+                            <td className="p-1">
+                                <BufferedInput value={row.remarks} onCommit={(v) => updateRow(row.id, 'remarks', v)} className={getInputClass()} placeholder="備註..." />
+                            </td>
+                        </tr>
+                      );
+                   })}
+                 </React.Fragment>
+               );
             })}
           </tbody>
         </table>
         {displayRows.length === 0 && (
           <div className="text-center py-12 text-gray-400">
             <p>本專案尚無營運控制資料。</p>
-            <p className="text-sm mt-2">請點擊上方「新增項目」開始建立進度表。</p>
+            <p className="text-sm mt-2">請點擊標題列右側「新增項目」或上方按鈕開始。</p>
           </div>
         )}
       </div>

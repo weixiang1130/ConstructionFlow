@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Download, Lock, RefreshCw, Calendar, ChevronLeft, ChevronRight, LogOut, Sparkles, Home } from 'lucide-react';
+import { Plus, Trash2, Download, Lock, RefreshCw, Calendar, ChevronLeft, ChevronRight, LogOut, Home, Layers, AlertCircle, Clock, CheckCircle } from 'lucide-react';
 import { ProcurementRow, UserRole } from '../types';
 import { calculateVariance, getVarianceColor } from '../utils';
-import { analyzeSchedule } from '../services/geminiService';
 
 // Role Definitions for Display
 const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
@@ -56,7 +55,7 @@ const BufferedInput = ({
       onChange={(e) => setLocalValue(e.target.value)}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
-      className={`${className} ${disabled ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 placeholder-gray-400'}`}
+      className={`${className} ${disabled ? 'bg-transparent text-gray-400 cursor-not-allowed' : 'bg-transparent text-gray-900 focus:ring-2 focus:ring-blue-500 placeholder-gray-400'}`}
       placeholder={disabled ? '' : placeholder}
     />
   );
@@ -77,8 +76,6 @@ const CustomDatePicker = ({
   if (!isOpen) return null;
 
   const [viewDate, setViewDate] = useState(() => {
-    // Strictly parse YYYY-MM-DD manually to construct a local date. 
-    // This prevents timezone shifts and handles invalid inputs gracefully.
     const isValidDate = initialDate && /^\d{4}-\d{2}-\d{2}$/.test(initialDate);
     if (isValidDate) {
       const [y, m, d] = initialDate.split('-').map(Number);
@@ -88,7 +85,7 @@ const CustomDatePicker = ({
   });
 
   const year = viewDate.getFullYear();
-  const month = viewDate.getMonth(); // 0-indexed
+  const month = viewDate.getMonth();
 
   const getDaysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
   const getFirstDayOfMonth = (y: number, m: number) => new Date(y, m, 1).getDay();
@@ -98,10 +95,7 @@ const CustomDatePicker = ({
 
   const handlePrevMonth = () => setViewDate(new Date(year, month - 1, 1));
   const handleNextMonth = () => setViewDate(new Date(year, month + 1, 1));
-  const handleToday = () => {
-    const today = new Date();
-    setViewDate(today);
-  };
+  const handleToday = () => setViewDate(new Date());
 
   const handleDayClick = (day: number) => {
     const m = (month + 1).toString().padStart(2, '0');
@@ -116,8 +110,6 @@ const CustomDatePicker = ({
   for (let i = 1; i <= daysInCurrentMonth; i++) {
     const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${i.toString().padStart(2, '0')}`;
     const isSelected = initialDate === dateStr;
-    
-    // Check if it is today using local time logic
     const today = new Date();
     const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === i;
 
@@ -177,19 +169,16 @@ const DateInput = ({
 }) => {
   const [isValid, setIsValid] = useState(true);
 
-  // Sync validation state with value prop updates
   useEffect(() => {
     if (!value) {
       setIsValid(true);
       return;
     }
-    // Check if the current value matches the format
     setIsValid(/^\d{4}-\d{2}-\d{2}$/.test(value));
   }, [value]);
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const val = e.target.value;
-    // Validate on blur
     if (val && !/^\d{4}-\d{2}-\d{2}$/.test(val)) {
       setIsValid(false);
     } else {
@@ -198,25 +187,26 @@ const DateInput = ({
   };
 
   return (
-    <div className="flex items-center w-full gap-1">
+    <div className="flex items-center w-full gap-1 group/date">
       <input
         type="text"
         value={value || ''}
         disabled={disabled}
-        placeholder="YYYY-MM-DD"
+        placeholder="-"
         maxLength={10}
         onChange={(e) => onChange(e.target.value)}
         onBlur={handleBlur}
-        className={`${className} flex-1 min-w-0 ${!disabled ? 'cursor-text' : ''} ${!isValid ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : ''}`}
+        // Added text-gray-900 to force visibility
+        className={`${className} flex-1 text-center bg-transparent text-gray-900 ${!disabled ? 'cursor-text' : ''} ${!isValid ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : ''}`}
       />
       {!disabled && (
         <button
           type="button"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpenPicker(); }}
-          className="p-1.5 bg-white border border-gray-300 rounded text-gray-500 hover:text-blue-600 hover:border-blue-500 hover:bg-blue-50 transition-all shadow-sm flex-shrink-0"
+          className="opacity-0 group-hover/date:opacity-100 p-1 text-gray-400 hover:text-blue-600 transition-all flex-shrink-0"
           title="開啟日曆"
         >
-          <Calendar size={16} />
+          <Calendar size={14} />
         </button>
       )}
     </div>
@@ -270,7 +260,6 @@ interface ProcurementTableProps {
 
 export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProjectId, currentProjectName, userRole, onLogout, onBackToHome }) => {
   
-  // Load ALL rows from storage
   const [allRows, setAllRows] = useState<ProcurementRow[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -280,7 +269,7 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
           return parsed.map((r: any) => ({
             ...r,
             remarks: r.remarks || '',
-            projectId: r.projectId || 'default-project' // Migration support
+            projectId: r.projectId || 'default-project'
           }));
         } catch (e) {
           console.error("Failed to parse saved data", e);
@@ -297,21 +286,31 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
     currentDate: string;
   }>({ isOpen: false, rowId: null, field: null, currentDate: '' });
 
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<any | null>(null);
-
-  // Filter rows for current project
   const displayRows = allRows.filter(r => r.projectId === currentProjectId);
 
-  // Save to localStorage whenever allRows changes
+  const totalItems = displayRows.length;
+  const completedItems = displayRows.filter(r => r.actualRequestDate).length;
+  const delayedItems = displayRows.filter(r => {
+    const variance = calculateVariance(r.scheduledRequestDate, r.actualRequestDate);
+    return variance !== null && variance < 0;
+  }).length;
+  const upcomingItems = displayRows.filter(r => {
+    if (!r.scheduledRequestDate || r.actualRequestDate) return false;
+    const date = new Date(r.scheduledRequestDate);
+    date.setHours(0,0,0,0);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+    return date >= today && date <= nextWeek;
+  }).length;
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(allRows));
   }, [allRows]);
 
   const isEditable = (field: keyof ProcurementRow): boolean => {
-    // Lock Project Name for EVERYONE
     if (field === 'projectName') return false;
-
     if (userRole === 'ADMIN') return true;
     switch (userRole) {
       case 'PLANNER': return ['engineeringItem', 'scheduledRequestDate', 'siteOrganizer'].includes(field);
@@ -327,9 +326,9 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
     if (!canManageRows) return;
     const newRow: ProcurementRow = {
       id: crypto.randomUUID(),
-      projectId: currentProjectId, // Assign current project ID
+      projectId: currentProjectId,
       remarks: '',
-      projectName: currentProjectName, // Auto-populate with current project name
+      projectName: currentProjectName,
       engineeringItem: '',
       scheduledRequestDate: '',
       actualRequestDate: '',
@@ -359,28 +358,14 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
   
   const resetData = () => {
     if (confirm('確定要重置本專案所有資料嗎？此動作無法復原。')) {
-      // Only remove rows for current project, keep others
       const otherProjectRows = allRows.filter(r => r.projectId !== currentProjectId);
       setAllRows([...otherProjectRows]); 
     }
   };
 
-  const handleAnalyze = async () => {
-    setIsAnalyzing(true);
-    setAnalysisResult(null);
-    try {
-      const result = await analyzeSchedule(displayRows);
-      setAnalysisResult(result);
-    } catch (error) {
-      alert("AI 分析失敗，請稍後再試。");
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
   const exportCSV = () => {
     const headers = [
-      "專案名稱", "工程項目", "預定提出時間", "實際提出時間", "時程差異", "燈號狀態", "工地主辦", "採發主辦", "退件日期", "退件原因", "重新提送日期", "確認承攬商日期", "廠商", "備註"
+      "工程項目", "預定提出時間", "實際提出時間", "時程差異", "燈號狀態", "工地主辦", "採發主辦", "退件日期", "退件原因", "重新提送日期", "確認承攬商日期", "廠商", "備註"
     ];
     
     const csvContent = [
@@ -395,7 +380,6 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
             else status = "警示 (黃燈)";
         }
         return [
-          row.projectName,
           row.engineeringItem,
           row.scheduledRequestDate,
           row.actualRequestDate,
@@ -430,11 +414,12 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
 
   const getInputClass = (field: keyof ProcurementRow) => {
     const editable = isEditable(field);
-    const base = "w-full p-2 rounded outline-none transition-all border border-transparent";
+    // Added py-0.5 and reduced text size slightly if needed, though text-sm is good.
+    const base = "w-full rounded outline-none transition-all border-b border-transparent text-sm py-0.5 px-1";
     if (editable) {
-      return `${base} bg-white text-gray-900 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 shadow-sm`;
+      return `${base} hover:border-gray-300 focus:border-blue-500`;
     }
-    return `${base} bg-gray-100 text-gray-400 cursor-not-allowed select-none`;
+    return `${base} cursor-not-allowed select-none`;
   };
 
   const handleOpenPicker = (rowId: string, field: keyof ProcurementRow, currentDate: string) => {
@@ -449,12 +434,12 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
   };
 
   const StatusLight = ({ variance }: { variance: number | null }) => {
-    if (variance === null) return <div className="w-5 h-5 rounded-full bg-gray-200" title="無資料" />;
-    if (variance >= 0) return <div className="flex justify-center"><div className="w-5 h-5 rounded-full bg-green-500 shadow-md ring-2 ring-green-100" title="正常" /></div>;
+    if (variance === null) return <div className="w-4 h-4 rounded-full bg-gray-200 mx-auto" title="無資料" />;
+    if (variance >= 0) return <div className="w-4 h-4 rounded-full bg-green-500 shadow-sm mx-auto" title="正常" />;
     const delay = Math.abs(variance);
-    if (delay <= 7) return <div className="flex justify-center"><div className="w-5 h-5 rounded-full bg-yellow-400 shadow-md ring-2 ring-yellow-100" title={`警示: 延誤 ${delay} 天`} /></div>;
-    if (delay <= 30) return <div className="flex justify-center"><div className="w-5 h-5 rounded-full bg-orange-500 shadow-md ring-2 ring-orange-100" title={`通知工地: 延誤 ${delay} 天`} /></div>;
-    return <div className="flex justify-center"><div className="relative flex items-center justify-center"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><div className="relative w-5 h-5 rounded-full bg-red-600 shadow-md ring-2 ring-red-100" title={`通知長官: 延誤 ${delay} 天`}></div></div></div>;
+    if (delay <= 7) return <div className="w-4 h-4 rounded-full bg-yellow-400 shadow-sm mx-auto" title={`警示: 延誤 ${delay} 天`} />;
+    if (delay <= 30) return <div className="w-4 h-4 rounded-full bg-orange-500 shadow-sm mx-auto" title={`通知工地: 延誤 ${delay} 天`} />;
+    return <div className="relative flex items-center justify-center w-4 h-4 mx-auto"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><div className="relative w-4 h-4 rounded-full bg-red-600 shadow-sm" title={`通知長官: 延誤 ${delay} 天`}></div></div>;
   };
 
   return (
@@ -466,60 +451,6 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
         onClose={() => setPickerState(prev => ({ ...prev, isOpen: false }))}
       />
 
-      {/* AI Analysis Modal */}
-      {analysisResult && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setAnalysisResult(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 text-white flex justify-between items-center shrink-0">
-              <div className="flex items-center gap-2">
-                <Sparkles className="text-yellow-300" />
-                <h3 className="text-lg font-bold">AI 智能進度分析報告</h3>
-              </div>
-              <button onClick={() => setAnalysisResult(null)} className="text-white/80 hover:text-white p-1 hover:bg-white/20 rounded">
-                <LogOut size={20} className="rotate-180" /> {/* Using LogOut icon as close for now, or X */}
-              </button>
-            </div>
-            <div className="p-6 overflow-y-auto">
-              <div className="mb-6">
-                <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">行政摘要</h4>
-                <p className="text-gray-800 leading-relaxed bg-gray-50 p-4 rounded-lg border border-gray-100">{analysisResult.summary}</p>
-              </div>
-
-              {analysisResult.criticalDelays.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-bold text-red-500 uppercase tracking-wider mb-2">嚴重延誤警示</h4>
-                  <ul className="space-y-3">
-                    {analysisResult.criticalDelays.map((item: string, idx: number) => (
-                      <li key={idx} className="flex gap-3 bg-red-50 p-3 rounded-lg border border-red-100">
-                        <div className="shrink-0 w-1.5 bg-red-500 rounded-full mt-1.5 h-1.5"></div>
-                        <span className="text-red-800 text-sm">{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <div>
-                <h4 className="text-sm font-bold text-blue-500 uppercase tracking-wider mb-2">趕工建議策略</h4>
-                <ul className="space-y-3">
-                  {analysisResult.recommendations.map((item: string, idx: number) => (
-                    <li key={idx} className="flex gap-3 bg-blue-50 p-3 rounded-lg border border-blue-100">
-                      <div className="shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold border border-blue-200">{idx + 1}</div>
-                      <span className="text-blue-900 text-sm">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-            <div className="p-4 border-t bg-gray-50 shrink-0 text-right">
-              <button onClick={() => setAnalysisResult(null)} className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded font-medium text-sm transition-colors">
-                關閉報告
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="bg-white border-b border-gray-200">
         <div className="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex items-center space-x-2">
@@ -527,29 +458,65 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
           </div>
           
           <div className="flex items-center gap-2">
-            <button 
-              onClick={handleAnalyze} 
-              disabled={isAnalyzing || displayRows.length === 0}
-              className={`flex items-center gap-2 px-4 py-2 rounded text-white shadow-sm text-sm font-medium transition-all ${isAnalyzing || displayRows.length === 0 ? 'bg-indigo-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
-            >
-              {isAnalyzing ? <span className="animate-spin">⏳</span> : <Sparkles size={16} />} 
-              {isAnalyzing ? '分析中...' : 'AI 進度分析'}
-            </button>
-
             {canManageRows && (
               <button onClick={addRow} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors shadow-sm text-sm font-medium">
-                <Plus size={16} /> 新增項目
+                <Plus size={16} /> 新增
               </button>
             )}
             <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors shadow-sm text-sm font-medium">
-              <Download size={16} /> 匯出 CSV
+              <Download size={16} /> 匯出
             </button>
             <button onClick={onBackToHome} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded hover:bg-slate-200 transition-colors shadow-sm text-sm font-medium ml-2">
-              <Home size={16} /> 回到首頁
+              <Home size={16} /> 首頁
             </button>
              <button onClick={onLogout} className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors shadow-sm text-sm font-medium ml-2">
               <LogOut size={16} /> 登出
             </button>
+          </div>
+        </div>
+
+        {/* Summary Dashboard */}
+        <div className="px-4 pb-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm font-medium">總項目</p>
+                <p className="text-2xl font-bold mt-1 text-blue-600">{totalItems}</p>
+              </div>
+              <div className="p-3 rounded-full bg-blue-50">
+                <Layers className="text-blue-600" size={24} />
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm font-medium">延誤項目</p>
+                <p className={`text-2xl font-bold mt-1 ${delayedItems > 0 ? 'text-red-600' : 'text-gray-800'}`}>{delayedItems}</p>
+              </div>
+              <div className="p-3 rounded-full bg-red-50">
+                <AlertCircle className="text-red-600" size={24} />
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm font-medium">本週即將到期</p>
+                <p className="text-2xl font-bold mt-1 text-amber-600">{upcomingItems}</p>
+              </div>
+              <div className="p-3 rounded-full bg-amber-50">
+                <Clock className="text-amber-600" size={24} />
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm font-medium">已完成項目</p>
+                <p className="text-2xl font-bold mt-1 text-green-600">{completedItems}</p>
+              </div>
+              <div className="p-3 rounded-full bg-green-50">
+                <CheckCircle className="text-green-600" size={24} />
+              </div>
+            </div>
           </div>
         </div>
         
@@ -558,7 +525,6 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
             <Lock size={12} />
             <span>目前權限: </span>
             <span className="font-medium text-gray-700">{ROLE_DESCRIPTIONS[userRole]}</span>
-            {!canManageRows && <span className="text-red-400 ml-2">(新增/刪除功能已鎖定)</span>}
           </div>
           {userRole === 'ADMIN' && (
             <button onClick={resetData} className="flex items-center gap-1 text-gray-400 hover:text-red-600 transition-colors">
@@ -568,82 +534,127 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto custom-scrollbar relative bg-gray-50">
+      <div className="flex-1 overflow-auto custom-scrollbar relative bg-white">
         <table className="min-w-full border-collapse text-sm">
           <thead className="sticky top-0 z-10 shadow-sm">
-             <tr className="divide-x divide-gray-300 border-b border-gray-300">
-              <th className="bg-gray-100 p-2 text-center text-gray-700 font-bold min-w-[50px]">操作</th>
-              <th className="bg-blue-100 p-2 text-center text-blue-900 font-bold" colSpan={6}>提出請購時程 (工地)</th>
-              <th className="bg-amber-100 p-2 text-center text-amber-900 font-bold" colSpan={2}>退件 (採購)</th>
-              <th className="bg-orange-100 p-2 text-center text-orange-900 font-bold" colSpan={1}>工地重新提送</th>
-              <th className="bg-gray-100 p-2 text-center text-gray-800 font-bold" colSpan={2}>確認</th>
-              <th className="bg-yellow-300 p-2 text-center text-yellow-900 font-bold border-l-4 border-yellow-500" colSpan={2}>結果</th>
-              <th className="bg-gray-100 p-2 text-center text-gray-700 font-bold min-w-[150px]">備註</th>
+             <tr className="border-b border-gray-200">
+              <th className="bg-gray-50 p-2 text-center text-gray-400 font-semibold w-[50px] border-r border-gray-100"></th>
+              <th className="bg-gray-50 p-2 text-left font-bold text-gray-700 border-r border-gray-100 min-w-[200px]">工程資訊</th>
+              <th className="bg-blue-50 p-2 text-center font-bold text-blue-900 border-r border-blue-100" colSpan={2}>提出時間</th>
+              <th className="bg-gray-50 p-2 text-center font-bold text-gray-700 border-r border-gray-100" colSpan={2}>主辦人員</th>
+              <th className="bg-gray-50 p-2 text-center font-bold text-gray-700 border-r border-gray-100" colSpan={3}>退件/重送</th>
+              <th className="bg-gray-50 p-2 text-center font-bold text-gray-700 border-r border-gray-100" colSpan={2}>承攬發包</th>
+              <th className="bg-yellow-50 p-2 text-center font-bold text-yellow-900 border-r border-yellow-100" colSpan={2}>進度狀態</th>
+              <th className="bg-gray-50 p-2 text-left font-bold text-gray-700 min-w-[200px]">備註</th>
             </tr>
-            <tr className="divide-x divide-gray-300 border-b border-gray-300 text-xs text-gray-700">
-              <th className="bg-gray-50 p-2 min-w-[50px]"></th>
-              <th className="bg-blue-50 p-2 min-w-[150px] font-semibold">專案名稱</th>
-              <th className="bg-blue-50 p-2 min-w-[150px] font-semibold">工程項目</th>
-              <th className="bg-blue-50 p-2 min-w-[130px] font-semibold">預定提出時間</th>
-              <th className="bg-blue-50 p-2 min-w-[130px] font-semibold">實際提出時間</th>
-              <th className="bg-blue-50 p-2 min-w-[100px] font-semibold">工地主辦</th>
-              <th className="bg-blue-50 p-2 min-w-[100px] font-semibold">採發主辦</th>
-              <th className="bg-amber-50 p-2 min-w-[130px] font-semibold">退件日期</th>
-              <th className="bg-amber-50 p-2 min-w-[150px] font-semibold">退件原因</th>
-              <th className="bg-orange-50 p-2 min-w-[130px] font-semibold">重新提送日期</th>
-              <th className="bg-gray-50 p-2 min-w-[130px] font-semibold">確認承攬商日期</th>
-              <th className="bg-gray-50 p-2 min-w-[150px] font-semibold">廠商</th>
-              <th className="bg-yellow-100 p-2 min-w-[100px] font-semibold border-l-2 border-yellow-300">請購時程差異</th>
-              <th className="bg-yellow-100 p-2 min-w-[60px] font-semibold">燈號</th>
-              <th className="bg-gray-50 p-2 min-w-[150px]"></th>
+            <tr className="border-b border-gray-200 text-xs text-gray-500 font-medium">
+              <th className="bg-white p-1 border-r border-gray-100"></th>
+              <th className="bg-white p-1 text-left border-r border-gray-100 pl-2">項目名稱</th>
+              
+              <th className="bg-blue-50/20 p-1 text-center text-blue-800 min-w-[110px]">預定</th>
+              <th className="bg-blue-50/20 p-1 text-center text-blue-800 border-r-2 border-gray-100 min-w-[110px]">實際</th>
+              
+              <th className="bg-white p-1 text-center w-[4.5rem] min-w-[4.5rem] whitespace-nowrap">工地</th>
+              <th className="bg-white p-1 text-center border-r-2 border-gray-100 w-[4.5rem] min-w-[4.5rem] whitespace-nowrap">採發</th>
+              
+              <th className="bg-white p-1 text-center min-w-[110px]">退件日</th>
+              <th className="bg-white p-1 text-center">原因</th>
+              <th className="bg-white p-1 text-center border-r-2 border-gray-100 min-w-[110px]">重送日</th>
+              
+              <th className="bg-white p-1 text-center min-w-[110px]">確認日</th>
+              <th className="bg-white p-1 text-center border-r-2 border-gray-100">廠商</th>
+              
+              <th className="bg-yellow-50/20 p-1 text-center text-yellow-800">差異</th>
+              <th className="bg-yellow-50/20 p-1 text-center text-yellow-800 border-r border-yellow-100">燈號</th>
+              
+              <th className="bg-white p-1 text-left pl-2">說明</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
+          <tbody className="divide-y divide-gray-100 bg-white">
             {displayRows.map((row) => {
                const variance = calculateVariance(row.scheduledRequestDate, row.actualRequestDate);
                const varianceColor = getVarianceColor(variance);
 
                return (
-                <tr key={row.id} className="hover:bg-gray-50 group transition-colors">
-                  <td className="p-2 text-center border-r border-gray-200">
+                <tr key={row.id} className="hover:bg-blue-50/50 group transition-colors">
+                  {/* Op */}
+                  <td className="py-1.5 px-1 text-center border-r border-gray-100">
                     <button 
                       onClick={() => deleteRow(row.id)}
                       disabled={!canManageRows}
-                      className={`p-1 rounded transition-colors ${canManageRows ? 'text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 cursor-pointer' : 'text-gray-200 cursor-not-allowed'}`}
-                      title={canManageRows ? "刪除" : "無刪除權限"}
+                      className={`p-1 rounded transition-colors ${canManageRows ? 'text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 cursor-pointer' : 'text-transparent cursor-not-allowed'}`}
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={14} />
                     </button>
                   </td>
-                  <td className="p-1 border-r border-gray-100"><BufferedInput value={row.projectName} disabled={!isEditable('projectName')} onCommit={(val) => updateRow(row.id, 'projectName', val)} className={getInputClass('projectName')} placeholder="輸入專案名稱"/></td>
-                  <td className="p-1 border-r border-gray-100"><BufferedInput value={row.engineeringItem} disabled={!isEditable('engineeringItem')} onCommit={(val) => updateRow(row.id, 'engineeringItem', val)} className={getInputClass('engineeringItem')} placeholder="輸入工程項目"/></td>
-                  <td className="p-1 border-r border-gray-100"><DateInput value={row.scheduledRequestDate} disabled={!isEditable('scheduledRequestDate')} onChange={(val) => updateRow(row.id, 'scheduledRequestDate', val)} className={getInputClass('scheduledRequestDate')} onOpenPicker={() => handleOpenPicker(row.id, 'scheduledRequestDate', row.scheduledRequestDate)}/></td>
-                  <td className="p-1 border-r border-gray-100"><DateInput value={row.actualRequestDate} disabled={!isEditable('actualRequestDate')} onChange={(val) => updateRow(row.id, 'actualRequestDate', val)} className={getInputClass('actualRequestDate')} onOpenPicker={() => handleOpenPicker(row.id, 'actualRequestDate', row.actualRequestDate)}/></td>
-                  <td className="p-1 border-r border-gray-100"><BufferedInput value={row.siteOrganizer} disabled={!isEditable('siteOrganizer')} onCommit={(val) => updateRow(row.id, 'siteOrganizer', val)} className={getInputClass('siteOrganizer')}/></td>
-                  <td className="p-1 border-r border-gray-100"><BufferedInput value={row.procurementOrganizer} disabled={!isEditable('procurementOrganizer')} onCommit={(val) => updateRow(row.id, 'procurementOrganizer', val)} className={getInputClass('procurementOrganizer')}/></td>
-                  <td className="p-1 border-r border-gray-100"><DateInput value={row.returnDate} disabled={!isEditable('returnDate')} onChange={(val) => updateRow(row.id, 'returnDate', val)} className={getInputClass('returnDate')} onOpenPicker={() => handleOpenPicker(row.id, 'returnDate', row.returnDate)}/></td>
-                  <td className="p-1 border-r border-gray-100"><BufferedInput value={row.returnReason} disabled={!isEditable('returnReason')} onCommit={(val) => updateRow(row.id, 'returnReason', val)} className={getInputClass('returnReason')} placeholder=""/></td>
-                  <td className="p-1 border-r border-gray-100"><DateInput value={row.resubmissionDate} disabled={!isEditable('resubmissionDate')} onChange={(val) => updateRow(row.id, 'resubmissionDate', val)} className={getInputClass('resubmissionDate')} onOpenPicker={() => handleOpenPicker(row.id, 'resubmissionDate', row.resubmissionDate)}/></td>
-                  <td className="p-1 border-r border-gray-100"><DateInput value={row.contractorConfirmDate} disabled={!isEditable('contractorConfirmDate')} onChange={(val) => updateRow(row.id, 'contractorConfirmDate', val)} className={getInputClass('contractorConfirmDate')} onOpenPicker={() => handleOpenPicker(row.id, 'contractorConfirmDate', row.contractorConfirmDate)}/></td>
-                  <td className="p-1 border-r border-gray-100"><BufferedInput value={row.contractorName} disabled={!isEditable('contractorName')} onCommit={(val) => updateRow(row.id, 'contractorName', val)} className={getInputClass('contractorName')}/></td>
-                  <td className={`p-2 text-center bg-yellow-50 border-l-2 border-yellow-200 ${varianceColor}`}>{variance !== null ? (variance > 0 ? `+${variance}` : variance) : '-'}</td>
-                  <td className="p-2 text-center bg-yellow-50"><StatusLight variance={variance} /></td>
-                  <td className="p-1 border-l border-gray-100"><BufferedInput value={row.remarks} disabled={!isEditable('remarks')} onCommit={(val) => updateRow(row.id, 'remarks', val)} className={getInputClass('remarks')} placeholder="工作說明..."/></td>
+
+                  {/* Item */}
+                  <td className="py-1.5 px-1 border-r border-gray-100 align-middle">
+                     <BufferedInput value={row.engineeringItem} disabled={!isEditable('engineeringItem')} onCommit={(val) => updateRow(row.id, 'engineeringItem', val)} className={getInputClass('engineeringItem') + " font-medium"} placeholder="輸入工程項目"/>
+                  </td>
+
+                  {/* Request Group */}
+                  <td className="py-1.5 px-1 align-middle">
+                    <DateInput value={row.scheduledRequestDate} disabled={!isEditable('scheduledRequestDate')} onChange={(val) => updateRow(row.id, 'scheduledRequestDate', val)} className={getInputClass('scheduledRequestDate')} onOpenPicker={() => handleOpenPicker(row.id, 'scheduledRequestDate', row.scheduledRequestDate)}/>
+                  </td>
+                  <td className="py-1.5 px-1 border-r-2 border-gray-100 align-middle">
+                    <DateInput value={row.actualRequestDate} disabled={!isEditable('actualRequestDate')} onChange={(val) => updateRow(row.id, 'actualRequestDate', val)} className={getInputClass('actualRequestDate')} onOpenPicker={() => handleOpenPicker(row.id, 'actualRequestDate', row.actualRequestDate)}/>
+                  </td>
+
+                  {/* Organizers */}
+                  <td className="py-1.5 px-1 align-middle w-[4.5rem] min-w-[4.5rem]">
+                    <BufferedInput value={row.siteOrganizer} disabled={!isEditable('siteOrganizer')} onCommit={(val) => updateRow(row.id, 'siteOrganizer', val)} className={getInputClass('siteOrganizer') + " text-center"}/>
+                  </td>
+                  <td className="py-1.5 px-1 border-r-2 border-gray-100 align-middle w-[4.5rem] min-w-[4.5rem]">
+                    <BufferedInput value={row.procurementOrganizer} disabled={!isEditable('procurementOrganizer')} onCommit={(val) => updateRow(row.id, 'procurementOrganizer', val)} className={getInputClass('procurementOrganizer') + " text-center"}/>
+                  </td>
+
+                  {/* Process */}
+                  <td className="py-1.5 px-1 align-middle">
+                    <DateInput value={row.returnDate} disabled={!isEditable('returnDate')} onChange={(val) => updateRow(row.id, 'returnDate', val)} className={getInputClass('returnDate')} onOpenPicker={() => handleOpenPicker(row.id, 'returnDate', row.returnDate)}/>
+                  </td>
+                  <td className="py-1.5 px-1 align-middle">
+                    <BufferedInput value={row.returnReason} disabled={!isEditable('returnReason')} onCommit={(val) => updateRow(row.id, 'returnReason', val)} className={getInputClass('returnReason') + " text-center"}/>
+                  </td>
+                  <td className="py-1.5 px-1 border-r-2 border-gray-100 align-middle">
+                    <DateInput value={row.resubmissionDate} disabled={!isEditable('resubmissionDate')} onChange={(val) => updateRow(row.id, 'resubmissionDate', val)} className={getInputClass('resubmissionDate')} onOpenPicker={() => handleOpenPicker(row.id, 'resubmissionDate', row.resubmissionDate)}/>
+                  </td>
+
+                  {/* Contractor */}
+                  <td className="py-1.5 px-1 align-middle">
+                    <DateInput value={row.contractorConfirmDate} disabled={!isEditable('contractorConfirmDate')} onChange={(val) => updateRow(row.id, 'contractorConfirmDate', val)} className={getInputClass('contractorConfirmDate')} onOpenPicker={() => handleOpenPicker(row.id, 'contractorConfirmDate', row.contractorConfirmDate)}/>
+                  </td>
+                  <td className="py-1.5 px-1 border-r-2 border-gray-100 align-middle">
+                    <BufferedInput value={row.contractorName} disabled={!isEditable('contractorName')} onCommit={(val) => updateRow(row.id, 'contractorName', val)} className={getInputClass('contractorName') + " text-center"}/>
+                  </td>
+
+                  {/* Status Group */}
+                  <td className={`py-1.5 px-1 text-center font-bold text-lg align-middle ${varianceColor}`}>
+                    {variance !== null ? (variance > 0 ? `+${variance}` : variance) : ''}
+                  </td>
+                  <td className="py-1.5 px-1 text-center border-r border-gray-100 align-middle">
+                    <StatusLight variance={variance} />
+                  </td>
+
+                  {/* Remarks */}
+                  <td className="py-1.5 px-1 align-middle">
+                    <BufferedInput value={row.remarks} disabled={!isEditable('remarks')} onCommit={(val) => updateRow(row.id, 'remarks', val)} className={getInputClass('remarks')} placeholder="..."/>
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
         {displayRows.length === 0 && (
-          <div className="text-center py-12 text-gray-400"><p>本專案無資料。請點擊「新增項目」開始。</p></div>
+          <div className="text-center py-12 text-gray-400"><p>本專案無資料。請點擊「新增」開始。</p></div>
         )}
       </div>
       <div className="p-2 bg-gray-50 border-t text-xs text-gray-500 flex flex-wrap justify-center gap-4">
         <span>計算公式: -(實際提出時間 - 預定提出時間)</span>
-        <span className="flex items-center gap-1"><div className="w-3 h-3 bg-green-500 rounded-full"></div> 正常 (無延誤)</span>
-        <span className="flex items-center gap-1"><div className="w-3 h-3 bg-yellow-400 rounded-full"></div> 警示 (延誤 1-7 天)</span>
-        <span className="flex items-center gap-1"><div className="w-3 h-3 bg-orange-500 rounded-full"></div> 通知工地 (延誤 8-30 天)</span>
-        <span className="flex items-center gap-1"><div className="w-3 h-3 bg-red-600 rounded-full"></div> 通知長官 (延誤 > 30 天)</span>
+        <span className="flex items-center gap-1"><div className="w-3 h-3 bg-green-500 rounded-full"></div> 正常</span>
+        <span className="flex items-center gap-1"><div className="w-3 h-3 bg-yellow-400 rounded-full"></div> 警示 (1-7天)</span>
+        <span className="flex items-center gap-1"><div className="w-3 h-3 bg-orange-500 rounded-full"></div> 延誤 (8-30天)</span>
+        <span className="flex items-center gap-1"><div className="w-3 h-3 bg-red-600 rounded-full"></div> 嚴重 (&gt;30天)</span>
       </div>
     </div>
   );
