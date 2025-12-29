@@ -9,19 +9,19 @@ export const MOCK_USERS: UserProfile[] = [
   },
   {
     username: 'proc_user',
-    name: '採購小李',
+    name: '採購部專用帳號',
     department: 'PROCUREMENT',
     role: 'PROCUREMENT'
   },
   {
     username: 'ops_user',
-    name: '營管小張',
+    name: '營管部專用帳號',
     department: 'OPERATIONS',
     role: 'PLANNER'
   },
   {
     username: 'qa_user',
-    name: '品保小王',
+    name: '品保部專用帳號',
     department: 'QUALITY',
     role: 'EXECUTOR'
   }
