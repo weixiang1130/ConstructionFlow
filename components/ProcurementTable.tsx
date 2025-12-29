@@ -413,13 +413,14 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
       })
     ].join('\n');
 
+    const dateStr = new Date().toISOString().split('T')[0];
     const bom = "\uFEFF";
     const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     if (link.download !== undefined) {
       const url = URL.createObjectURL(blob);
       link.setAttribute("href", url);
-      link.setAttribute("download", `procurement_schedule_${currentProjectId}.csv`);
+      link.setAttribute("download", `${currentProjectName}_${dateStr}.csv`);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
