@@ -44,23 +44,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectDepartment }) 
               <BarChart3 size={32} />
             </div>
             <h2 className="text-xl font-bold text-slate-800 mb-2">營運管理部</h2>
-            <p className="text-slate-500 text-sm mb-6">成本預算控制、專案營運分析、績效儀表板。</p>
+            <p className="text-slate-500 text-sm mb-6">專案營運分析、績效儀表板。</p>
             <div className="mt-auto flex items-center text-indigo-600 font-medium text-sm opacity-0 group-hover:opacity-100 transition-opacity">
               進入系統 <ArrowRight size={16} className="ml-1" />
             </div>
           </button>
 
-          {/* QA Department (Disabled) */}
-          <div className="relative bg-slate-100 p-8 rounded-2xl border border-slate-200 text-left flex flex-col items-start cursor-not-allowed opacity-75">
-            <div className="absolute top-4 right-4 bg-slate-200 text-slate-500 text-xs px-2 py-1 rounded font-medium">
-              建置中
-            </div>
-            <div className="p-3 bg-slate-200 text-slate-400 rounded-lg mb-4">
+          {/* QA Department */}
+          <button
+            onClick={() => onSelectDepartment('QUALITY')}
+            className="group relative bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:shadow-xl hover:border-teal-500 transition-all text-left flex flex-col items-start"
+          >
+            <div className="p-3 bg-teal-50 text-teal-600 rounded-lg mb-4 group-hover:bg-teal-600 group-hover:text-white transition-colors">
               <ClipboardCheck size={32} />
             </div>
-            <h2 className="text-xl font-bold text-slate-400 mb-2">品保部</h2>
-            <p className="text-slate-400 text-sm mb-6">施工品質查驗、缺失改善追蹤、安衛管理。</p>
-          </div>
+            <h2 className="text-xl font-bold text-slate-800 mb-2">品保部</h2>
+            <p className="text-slate-500 text-sm mb-6">施工計畫書送審。</p>
+            <div className="mt-auto flex items-center text-teal-600 font-medium text-sm opacity-0 group-hover:opacity-100 transition-opacity">
+              進入系統 <ArrowRight size={16} className="ml-1" />
+            </div>
+          </button>
         </div>
 
         <div className="mt-12 text-center text-slate-400 text-sm">

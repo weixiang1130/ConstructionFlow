@@ -107,16 +107,16 @@ export const ProcurementModule: React.FC<ProcurementModuleProps> = ({ onBackToLa
       console.error("Error cleaning up project data:", error);
     }
 
-    // 2. Update Projects State
+    // 2. Update Projects State & LocalStorage immediately
     const updatedProjects = projects.filter(p => p.id !== projectId);
     
-    // 3. Handle Selection Logic
-    if (updatedProjects.length === 0) {
-      setProjects([]);
-    } else {
-      setProjects(updatedProjects);
-    }
+    // Explicitly update storage to ensure persistence immediately
+    localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(updatedProjects));
+    
+    // Update State
+    setProjects(updatedProjects);
 
+    // 3. Handle Selection Logic
     // If we deleted the currently selected project, go back to selection
     if (projectId === currentProjectId) {
       setCurrentProjectId(null);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Calendar, ChevronLeft, ChevronRight, Activity, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, Calendar, ChevronLeft, ChevronRight, Activity, AlertCircle, CheckCircle2, Download } from 'lucide-react';
 import { OperationRow } from '../types';
 import { calculateDuration, calculateVariance } from '../utils';
 
@@ -210,9 +210,10 @@ const DateInput = ({
 
 interface OperationsTableProps {
   currentProjectId: string;
+  currentProjectName: string;
 }
 
-export const OperationsTable: React.FC<OperationsTableProps> = ({ currentProjectId }) => {
+export const OperationsTable: React.FC<OperationsTableProps> = ({ currentProjectId, currentProjectName }) => {
   const [allRows, setAllRows] = useState<OperationRow[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -333,6 +334,62 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({ currentProject
     return <div className="flex items-center justify-center"><AlertCircle className="text-red-600" size={20} /></div>;
   };
 
+  const exportCSV = () => {
+    const headers = [
+      "區分", "工程項目", 
+      "預定開始", "預定完成", "預定工期", 
+      "實際開始", "實際完成", "實際工期", 
+      "差異天數", "燈號狀態", "工期百分比", "備註"
+    ];
+    
+    const csvContent = [
+      headers.join(','),
+      ...displayRows.map(row => {
+        const scheduledDuration = calculateDuration(row.scheduledStartDate, row.scheduledEndDate);
+        const actualDuration = calculateDuration(row.actualStartDate, row.actualEndDate);
+        const variance = calculateVariance(row.scheduledEndDate, row.actualEndDate);
+        const progressPct = calculateProgress(row.actualStartDate, row.actualEndDate, row.scheduledEndDate);
+        
+        // Status Text Logic
+        let status = "正常";
+        if (variance !== null && variance < 0) {
+            if (variance <= -30) status = "嚴重落後 (紅)";
+            else if (variance <= -11) status = "警示落後 (橘)";
+            else status = "輕微落後 (黃)";
+        }
+
+        return [
+          row.category,
+          row.item,
+          row.scheduledStartDate,
+          row.scheduledEndDate,
+          scheduledDuration ?? '',
+          row.actualStartDate,
+          row.actualEndDate,
+          actualDuration ?? '',
+          variance !== null ? (variance > 0 ? `+${variance}` : variance) : '',
+          status,
+          `${progressPct}%`,
+          row.remarks
+        ].map(val => `"${val}"`).join(',');
+      })
+    ].join('\n');
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    const bom = "\uFEFF"; // Add BOM for Chinese character support in Excel
+    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `${currentProjectName}_營運管理控制表_${dateStr}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200">
       <CustomDatePicker 
@@ -347,9 +404,14 @@ export const OperationsTable: React.FC<OperationsTableProps> = ({ currentProject
             <Activity className="text-indigo-600" />
             全程營運管理控制表
         </h2>
-        <button onClick={addRow} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors shadow-sm text-sm font-medium">
-          <Plus size={16} /> 新增項目
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors shadow-sm text-sm font-medium">
+            <Download size={16} /> 匯出 Excel
+          </button>
+          <button onClick={addRow} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors shadow-sm text-sm font-medium">
+            <Plus size={16} /> 新增項目
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-auto custom-scrollbar relative bg-gray-50">

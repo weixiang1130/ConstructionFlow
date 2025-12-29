@@ -42,6 +42,16 @@ export interface OperationRow {
   remarks: string;            // 備註 (落後說明)
 }
 
+export interface QualityRow {
+  id: string;
+  projectId: string;
+  planName: string;        // 計畫名稱 (例如：施工架計畫) - 固定不可改
+  submissionDate: string;  // 提送日期
+  reviewDate: string;      // 審查日期
+  approvalDate: string;    // 核定備查日期
+  owner: string;           // 承辦人員
+}
+
 export interface AnalysisResult {
   summary: string;
   criticalDelays: string[];

@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, ArrowLeft, BarChart3, FolderOpen, ArrowLeftRight } from 'lucide-react';
+import { ArrowLeft, FolderOpen, ArrowLeftRight, ClipboardCheck } from 'lucide-react';
 import { ProjectSelectionPage } from './ProjectSelectionPage';
-import { OperationsTable } from './OperationsTable';
+import { QualityTable } from './QualityTable';
 import { Project } from '../types';
 
-const PROJECT_STORAGE_KEY = 'procurement_projects_list'; // Share project list with procurement
+const PROJECT_STORAGE_KEY = 'procurement_projects_list'; // Share project list with other modules
 
-interface OperationsModuleProps {
+interface QualityModuleProps {
   onBackToLanding: () => void;
 }
 
-export const OperationsModule: React.FC<OperationsModuleProps> = ({ onBackToLanding }) => {
+export const QualityModule: React.FC<QualityModuleProps> = ({ onBackToLanding }) => {
   // --- Project State ---
   const [projects, setProjects] = useState<Project[]>(() => {
     if (typeof window !== 'undefined') {
@@ -22,7 +22,7 @@ export const OperationsModule: React.FC<OperationsModuleProps> = ({ onBackToLand
 
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
 
-  // Sync projects (read-only mostly, but creation supported via ProjectSelectionPage)
+  // Sync projects (Support creation via ProjectSelectionPage)
   useEffect(() => {
     localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(projects));
   }, [projects]);
@@ -39,10 +39,10 @@ export const OperationsModule: React.FC<OperationsModuleProps> = ({ onBackToLand
 
   const handleDeleteProject = (projectId: string, e: React.MouseEvent) => {
       e.stopPropagation();
-      if(confirm("確定刪除專案？注意：這也會影響採購部的專案列表。")) {
+      if(confirm("確定刪除專案？注意：這也會影響其他部門的專案列表。")) {
           const updated = projects.filter(p => p.id !== projectId);
           setProjects(updated);
-          localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(updated)); // Explicit save
+          localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(updated));
           if (currentProjectId === projectId) setCurrentProjectId(null);
       }
   };
@@ -56,7 +56,7 @@ export const OperationsModule: React.FC<OperationsModuleProps> = ({ onBackToLand
         <div className="absolute top-4 left-4 z-50">
           <button 
             onClick={onBackToLanding}
-            className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-md border border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-300 transition-colors"
+            className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-md border border-gray-200 text-gray-600 hover:text-teal-600 hover:border-teal-300 transition-colors"
           >
             <ArrowLeft size={18} /> 回部門入口
           </button>
@@ -66,7 +66,7 @@ export const OperationsModule: React.FC<OperationsModuleProps> = ({ onBackToLand
           onSelect={setCurrentProjectId}
           onCreate={handleCreateProject}
           onDelete={handleDeleteProject}
-          title="內/外案選擇" 
+          title="內/外案選擇 (品保)" 
         />
       </div>
     );
@@ -78,37 +78,37 @@ export const OperationsModule: React.FC<OperationsModuleProps> = ({ onBackToLand
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row">
       {/* Sidebar */}
-      <aside className="w-full md:w-64 bg-indigo-900 text-indigo-100 flex flex-col h-auto md:h-screen sticky top-0 z-20 shadow-xl">
-        <div className="p-4 border-b border-indigo-800 flex items-center gap-2 text-white bg-indigo-950">
+      <aside className="w-full md:w-64 bg-teal-900 text-teal-100 flex flex-col h-auto md:h-screen sticky top-0 z-20 shadow-xl">
+        <div className="p-4 border-b border-teal-800 flex items-center gap-2 text-white bg-teal-950">
           <button 
             onClick={onBackToLanding}
-            className="mr-2 p-1 hover:bg-white/10 rounded transition-colors text-indigo-200 hover:text-white"
+            className="mr-2 p-1 hover:bg-white/10 rounded transition-colors text-teal-200 hover:text-white"
             title="回部門首頁"
           >
             <ArrowLeft size={20} />
           </button>
-          <BarChart3 className="text-indigo-400" />
-          <h1 className="text-lg font-bold tracking-tight">營運管理系統</h1>
+          <ClipboardCheck className="text-teal-400" />
+          <h1 className="text-lg font-bold tracking-tight">品保計畫系統</h1>
         </div>
         
         <div className="flex-1 p-4 space-y-6">
-           <div className="bg-indigo-800/50 rounded-lg p-4 border border-indigo-700/50">
-              <p className="text-xs text-indigo-300 uppercase mb-1">目前專案</p>
+           <div className="bg-teal-800/50 rounded-lg p-4 border border-teal-700/50">
+              <p className="text-xs text-teal-300 uppercase mb-1">目前專案</p>
               <div className="flex items-center gap-2 text-white font-bold text-lg mb-3 break-all">
-                <FolderOpen size={20} className="text-indigo-400 shrink-0" />
+                <FolderOpen size={20} className="text-teal-400 shrink-0" />
                 {currentProjectName}
               </div>
               <button 
                 onClick={() => setCurrentProjectId(null)}
-                className="w-full flex items-center justify-center gap-2 bg-indigo-700 hover:bg-indigo-600 text-white text-sm py-2 rounded transition-colors"
+                className="w-full flex items-center justify-center gap-2 bg-teal-700 hover:bg-teal-600 text-white text-sm py-2 rounded transition-colors"
               >
                 <ArrowLeftRight size={14} /> 切換專案
               </button>
            </div>
         </div>
 
-        <div className="p-4 border-t border-indigo-800 text-xs text-indigo-400 text-center">
-            營運管理部 v1.0
+        <div className="p-4 border-t border-teal-800 text-xs text-teal-400 text-center">
+            品質保證部 v1.0
         </div>
       </aside>
 
@@ -119,11 +119,11 @@ export const OperationsModule: React.FC<OperationsModuleProps> = ({ onBackToLand
              <h2 className="text-2xl font-bold text-gray-800">
                {currentProjectName}
              </h2>
-             <p className="text-sm text-gray-500">營運管理控制中心</p>
+             <p className="text-sm text-gray-500">品保計畫管制表</p>
           </div>
 
           <div className="flex-1 h-full min-h-0">
-             <OperationsTable currentProjectId={currentProjectId} currentProjectName={currentProjectName} />
+             <QualityTable currentProjectId={currentProjectId} currentProjectName={currentProjectName} />
           </div>
         </div>
       </main>

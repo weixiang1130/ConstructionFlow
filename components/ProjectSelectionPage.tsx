@@ -7,9 +7,10 @@ interface ProjectSelectionPageProps {
   onSelect: (projectId: string) => void;
   onCreate: (name: string) => void;
   onDelete: (projectId: string, e: React.MouseEvent) => void;
+  title?: string; // Optional title prop
 }
 
-export const ProjectSelectionPage: React.FC<ProjectSelectionPageProps> = ({ projects, onSelect, onCreate, onDelete }) => {
+export const ProjectSelectionPage: React.FC<ProjectSelectionPageProps> = ({ projects, onSelect, onCreate, onDelete, title }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
 
@@ -27,7 +28,7 @@ export const ProjectSelectionPage: React.FC<ProjectSelectionPageProps> = ({ proj
           <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
             <FolderOpen size={40} className="text-blue-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">工程採購系統</h1>
+          <h1 className="text-2xl font-bold text-gray-800">{title || '內/外案選擇'}</h1>
           <p className="text-gray-500 mt-2">請選擇專案以開始工作</p>
         </div>
 
@@ -49,7 +50,10 @@ export const ProjectSelectionPage: React.FC<ProjectSelectionPageProps> = ({ proj
                   </div>
                   
                   <button
-                    onClick={(e) => onDelete(project.id, e)}
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent entering the project
+                      onDelete(project.id, e);
+                    }}
                     className="absolute top-4 right-4 p-2 rounded-full text-gray-300 hover:bg-red-100 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
                     title="刪除專案"
                   >
@@ -77,7 +81,7 @@ export const ProjectSelectionPage: React.FC<ProjectSelectionPageProps> = ({ proj
                     type="text" 
                     value={newProjectName}
                     onChange={(e) => setNewProjectName(e.target.value)}
-                    placeholder="例如：C3-景觀工程"
+                    placeholder="例如：萬華直興案/板橋府中案"
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                     autoFocus
                   />
