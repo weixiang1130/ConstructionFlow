@@ -23,6 +23,25 @@ export interface ProcurementRow {
   contractorName: string;      // 廠商
 }
 
+export interface OperationRow {
+  id: string;
+  projectId: string;
+  category: string;        // 區分 (例如：設計階段、假設工程、地工工程)
+  item: string;            // 各階段/工程項目 (例如：基本設計、連續壁)
+  
+  // 預定進度 (Scheduled)
+  scheduledStartDate: string; // 開始日期
+  scheduledEndDate: string;   // 完成日期
+  // scheduledDuration (工期) is calculated on the fly
+
+  // 實際進度 (Actual)
+  actualStartDate: string;    // 開始日期
+  actualEndDate: string;      // 完成日期
+  // actualDuration (工期) is calculated on the fly
+
+  remarks: string;            // 備註 (落後說明)
+}
+
 export interface AnalysisResult {
   summary: string;
   criticalDelays: string[];

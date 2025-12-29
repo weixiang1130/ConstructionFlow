@@ -30,3 +30,22 @@ export const getVarianceColor = (variance: number | null): string => {
 export const formatDateForInput = (date: Date): string => {
   return date.toISOString().split('T')[0];
 };
+
+export const calculateDuration = (start: string, end: string): number | null => {
+  if (!start || !end) return null;
+
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    return null;
+  }
+
+  // Normalize to midnight
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(0, 0, 0, 0);
+
+  const diffTime = endDate.getTime() - startDate.getTime();
+  // Duration includes the start day, so +1
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+};
