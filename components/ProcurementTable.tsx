@@ -311,16 +311,17 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
 
   const isEditable = (field: keyof ProcurementRow): boolean => {
     if (field === 'projectName') return false;
-    if (userRole === 'ADMIN') return true;
+    // Updated: Grant PROCUREMENT role full edit access to all fields, same as ADMIN
+    if (userRole === 'ADMIN' || userRole === 'PROCUREMENT') return true;
     switch (userRole) {
       case 'PLANNER': return ['engineeringItem', 'scheduledRequestDate', 'siteOrganizer'].includes(field);
       case 'EXECUTOR': return ['actualRequestDate', 'remarks'].includes(field); 
-      case 'PROCUREMENT': return ['procurementOrganizer', 'returnDate', 'returnReason', 'resubmissionDate', 'contractorConfirmDate', 'contractorName'].includes(field);
       default: return false;
     }
   };
 
-  const canManageRows = userRole === 'ADMIN' || userRole === 'PLANNER';
+  // Updated: Allow PROCUREMENT role to manage rows (Add/Delete), same as ADMIN/PLANNER
+  const canManageRows = userRole === 'ADMIN' || userRole === 'PLANNER' || userRole === 'PROCUREMENT';
 
   const addRow = () => {
     if (!canManageRows) return;
