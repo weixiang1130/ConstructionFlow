@@ -1,6 +1,15 @@
+export type UserRole = 'ADMIN' | 'PLANNER' | 'EXECUTOR' | 'PROCUREMENT';
+
+export interface Project {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
 export interface ProcurementRow {
   id: string;
-  remarks: string;             // 備註 (新增)
+  projectId: string;           // Linked Project ID (New)
+  remarks: string;             // 備註
   projectName: string;         // 專案名稱
   engineeringItem: string;     // 工程項目
   scheduledRequestDate: string; // 預定提出時間 (C)
@@ -12,7 +21,6 @@ export interface ProcurementRow {
   resubmissionDate: string;    // 重新提送日期
   contractorConfirmDate: string;// 確認承攬商日期
   contractorName: string;      // 廠商
-  // Variance is calculated, not stored strictly, but we can treat it as derived
 }
 
 export interface AnalysisResult {
