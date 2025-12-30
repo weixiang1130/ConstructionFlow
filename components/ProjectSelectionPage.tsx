@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Project } from '../types';
-import { FolderOpen, Plus, Calendar, Trash2 } from 'lucide-react';
+import { FolderOpen, Plus, Calendar, Trash2, ArrowRight } from 'lucide-react';
 
 interface ProjectSelectionPageProps {
   projects: Project[];
@@ -22,89 +22,110 @@ export const ProjectSelectionPage: React.FC<ProjectSelectionPageProps> = ({ proj
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-5xl border border-gray-200">
-        <div className="text-center mb-8">
-          <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-            <FolderOpen size={40} className="text-blue-600" />
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans text-slate-900">
+      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-10 w-full max-w-6xl">
+        <div className="flex flex-col md:flex-row justify-between items-center mb-10 pb-6 border-b border-slate-100">
+          <div className="text-center md:text-left">
+             <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
+               <div className="bg-indigo-100 p-2 rounded-xl">
+                 <FolderOpen size={28} className="text-indigo-600" />
+               </div>
+               <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{title || '專案選擇'}</h1>
+             </div>
+             <p className="text-slate-500 ml-1">請選擇要作業的專案或建立新專案</p>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">{title || '內/外案選擇'}</h1>
-          <p className="text-gray-500 mt-2">請選擇專案以開始工作</p>
+          
+          {!isCreating && (
+            <button
+              onClick={() => setIsCreating(true)}
+              className="mt-4 md:mt-0 flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+            >
+              <Plus size={20} /> 建立新專案
+            </button>
+          )}
         </div>
 
         {!isCreating ? (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[60vh] overflow-y-auto p-2">
-              {projects.map((project) => (
-                <div
-                  key={project.id}
-                  onClick={() => onSelect(project.id)}
-                  className="relative flex flex-col items-start p-6 rounded-xl border border-gray-200 hover:border-blue-500 hover:shadow-lg hover:bg-blue-50 transition-all group text-left cursor-pointer bg-white"
-                >
-                  <div className="font-bold text-gray-800 group-hover:text-blue-700 mb-2 truncate w-full text-lg">
-                    {project.name}
-                  </div>
-                  <div className="text-xs text-gray-400 flex items-center gap-1 mt-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {projects.length === 0 && (
+               <div className="col-span-full py-20 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50">
+                  <p>目前沒有專案，請點擊右上方按鈕建立。</p>
+               </div>
+            )}
+            {projects.map((project) => (
+              <div
+                key={project.id}
+                onClick={() => onSelect(project.id)}
+                className="group relative bg-white p-6 rounded-2xl border border-slate-200 hover:border-indigo-300 shadow-sm hover:shadow-xl transition-all cursor-pointer flex flex-col h-[180px]"
+              >
+                <div className="flex justify-between items-start mb-4">
+                   <div className="bg-indigo-50 p-2.5 rounded-lg group-hover:bg-indigo-600 transition-colors">
+                     <FolderOpen size={20} className="text-indigo-600 group-hover:text-white transition-colors" />
+                   </div>
+                   <button
+                    onClick={(e) => {
+                      e.stopPropagation(); 
+                      onDelete(project.id, e);
+                    }}
+                    className="p-2 rounded-full text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                    title="刪除專案"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+
+                <div className="font-bold text-xl text-slate-800 group-hover:text-indigo-600 mb-2 truncate transition-colors">
+                  {project.name}
+                </div>
+                
+                <div className="mt-auto flex items-center justify-between">
+                   <div className="text-xs font-medium text-slate-400 flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-md">
                     <Calendar size={12} />
                     {new Date(project.createdAt).toLocaleDateString()}
                   </div>
-                  
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent entering the project
-                      onDelete(project.id, e);
-                    }}
-                    className="absolute top-4 right-4 p-2 rounded-full text-gray-300 hover:bg-red-100 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                    title="刪除專案"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  <div className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-all transform translate-x-[-10px] group-hover:translate-x-0">
+                    <ArrowRight size={20} />
+                  </div>
                 </div>
-              ))}
-              
-              <button
-                onClick={() => setIsCreating(true)}
-                className="flex flex-col items-center justify-center p-6 rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-all min-h-[140px]"
-              >
-                <Plus size={40} className="mb-2" />
-                <span className="font-medium text-lg">建立新專案</span>
-              </button>
-            </div>
+              </div>
+            ))}
           </div>
         ) : (
-          <div className="max-w-md mx-auto py-8">
-             <h3 className="text-xl font-bold text-gray-800 mb-6 text-center">建立新專案</h3>
-             <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">專案名稱</label>
-                  <input 
-                    type="text" 
-                    value={newProjectName}
-                    onChange={(e) => setNewProjectName(e.target.value)}
-                    placeholder="例如：萬華直興案/板橋府中案"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                    autoFocus
-                  />
-                </div>
-                <div className="flex gap-3 justify-center pt-2">
-                   <button 
-                    type="button"
-                    onClick={() => setIsCreating(false)}
-                    className="px-6 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg font-medium"
-                   >
-                     取消
-                   </button>
-                   <button 
-                    type="submit"
-                    disabled={!newProjectName.trim()}
-                    className={`px-6 py-2.5 text-white rounded-lg font-medium transition-colors shadow-sm ${
-                      newProjectName.trim() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-300 cursor-not-allowed'
-                    }`}
-                   >
-                     建立並進入
-                   </button>
-                </div>
-             </form>
+          <div className="max-w-md mx-auto py-10 animate-in fade-in zoom-in duration-300">
+             <div className="bg-slate-50 p-8 rounded-2xl border border-slate-200">
+               <h3 className="text-xl font-bold text-slate-800 mb-6 text-center">建立新專案</h3>
+               <form onSubmit={handleSubmit} className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">專案名稱</label>
+                    <input 
+                      type="text" 
+                      value={newProjectName}
+                      onChange={(e) => setNewProjectName(e.target.value)}
+                      placeholder="例如：萬華直興案"
+                      className="w-full p-3.5 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all shadow-sm"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                     <button 
+                      type="button"
+                      onClick={() => setIsCreating(false)}
+                      className="flex-1 px-4 py-3 text-slate-600 hover:bg-white hover:shadow-sm border border-transparent hover:border-slate-200 rounded-xl font-bold transition-all"
+                     >
+                       取消
+                     </button>
+                     <button 
+                      type="submit"
+                      disabled={!newProjectName.trim()}
+                      className={`flex-1 px-4 py-3 text-white rounded-xl font-bold transition-all shadow-md ${
+                        newProjectName.trim() ? 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-lg' : 'bg-indigo-300 cursor-not-allowed'
+                      }`}
+                     >
+                       確認建立
+                     </button>
+                  </div>
+               </form>
+             </div>
           </div>
         )}
       </div>

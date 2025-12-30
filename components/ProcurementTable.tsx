@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Download, Lock, RefreshCw, Calendar, ChevronLeft, ChevronRight, LogOut, Home, Layers, AlertCircle, Clock, CheckCircle } from 'lucide-react';
+import { Plus, Trash2, Download, Lock, Calendar, ChevronLeft, ChevronRight, Layers, AlertCircle, Clock, CheckCircle } from 'lucide-react';
 import { ProcurementRow, UserRole } from '../types';
 import { calculateVariance, getVarianceColor } from '../utils';
 
@@ -55,7 +55,7 @@ const BufferedInput = ({
       onChange={(e) => setLocalValue(e.target.value)}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
-      className={`${className} ${disabled ? 'bg-transparent text-gray-400 cursor-not-allowed' : 'bg-transparent text-gray-900 focus:ring-2 focus:ring-blue-500 placeholder-gray-400'}`}
+      className={`${className} ${disabled ? 'bg-transparent text-gray-400 cursor-not-allowed' : 'bg-transparent text-slate-900 focus:ring-2 focus:ring-blue-500 placeholder-slate-300'}`}
       placeholder={disabled ? '' : placeholder}
     />
   );
@@ -120,7 +120,7 @@ const CustomDatePicker = ({
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDayClick(i); }}
         className={`
           h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors cursor-pointer
-          ${isSelected ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-100 text-gray-700'}
+          ${isSelected ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50 text-slate-700'}
           ${!isSelected && isToday ? 'border border-blue-400 font-bold text-blue-600' : ''}
         `}
       >
@@ -196,14 +196,13 @@ const DateInput = ({
         maxLength={10}
         onChange={(e) => onChange(e.target.value)}
         onBlur={handleBlur}
-        // Added text-gray-900 to force visibility
-        className={`${className} flex-1 text-center bg-transparent text-gray-900 ${!disabled ? 'cursor-text' : ''} ${!isValid ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : ''}`}
+        className={`${className} flex-1 text-center bg-transparent text-slate-900 ${!disabled ? 'cursor-text' : ''} ${!isValid ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : ''}`}
       />
       {!disabled && (
         <button
           type="button"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpenPicker(); }}
-          className="opacity-0 group-hover/date:opacity-100 p-1 text-gray-400 hover:text-blue-600 transition-all flex-shrink-0"
+          className="opacity-0 group-hover/date:opacity-100 p-1 text-slate-400 hover:text-blue-600 transition-all flex-shrink-0"
           title="開啟日曆"
         >
           <Calendar size={14} />
@@ -311,7 +310,6 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
 
   const isEditable = (field: keyof ProcurementRow): boolean => {
     if (field === 'projectName') return false;
-    // Updated: Grant PROCUREMENT role full edit access to all fields, same as ADMIN
     if (userRole === 'ADMIN' || userRole === 'PROCUREMENT') return true;
     switch (userRole) {
       case 'PLANNER': return ['engineeringItem', 'scheduledRequestDate', 'siteOrganizer'].includes(field);
@@ -320,7 +318,6 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
     }
   };
 
-  // Updated: Allow PROCUREMENT role to manage rows (Add/Delete), same as ADMIN/PLANNER
   const canManageRows = userRole === 'ADMIN' || userRole === 'PLANNER' || userRole === 'PROCUREMENT';
 
   const addRow = () => {
@@ -415,12 +412,11 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
 
   const getInputClass = (field: keyof ProcurementRow) => {
     const editable = isEditable(field);
-    // Added py-0.5 and reduced text size slightly if needed, though text-sm is good.
-    const base = "w-full rounded outline-none transition-all border-b border-transparent text-sm py-0.5 px-1";
+    const base = "w-full rounded outline-none transition-all border-b border-transparent text-sm py-1 px-2";
     if (editable) {
-      return `${base} hover:border-gray-300 focus:border-blue-500`;
+      return `${base} hover:border-slate-300 focus:border-blue-500`;
     }
-    return `${base} cursor-not-allowed select-none`;
+    return `${base} cursor-not-allowed select-none text-slate-500`;
   };
 
   const handleOpenPicker = (rowId: string, field: keyof ProcurementRow, currentDate: string) => {
@@ -434,17 +430,22 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
     }
   };
 
-  const StatusLight = ({ variance }: { variance: number | null }) => {
-    if (variance === null) return <div className="w-4 h-4 rounded-full bg-gray-200 mx-auto" title="無資料" />;
-    if (variance >= 0) return <div className="w-4 h-4 rounded-full bg-green-500 shadow-sm mx-auto" title="正常" />;
+  const StatusPill = ({ variance }: { variance: number | null }) => {
+    if (variance === null) return <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">-</span>;
+    if (variance >= 0) return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-200">正常</span>;
+    
     const delay = Math.abs(variance);
-    if (delay <= 7) return <div className="w-4 h-4 rounded-full bg-yellow-400 shadow-sm mx-auto" title={`警示: 延誤 ${delay} 天`} />;
-    if (delay <= 30) return <div className="w-4 h-4 rounded-full bg-orange-500 shadow-sm mx-auto" title={`通知工地: 延誤 ${delay} 天`} />;
-    return <div className="relative flex items-center justify-center w-4 h-4 mx-auto"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><div className="relative w-4 h-4 rounded-full bg-red-600 shadow-sm" title={`通知長官: 延誤 ${delay} 天`}></div></div>;
+    let colorClass = "bg-yellow-100 text-yellow-700 border-yellow-200";
+    let text = `落後 ${delay} 天`;
+
+    if (delay > 30) colorClass = "bg-red-100 text-red-700 border-red-200 font-bold";
+    else if (delay >= 8) colorClass = "bg-orange-100 text-orange-700 border-orange-200";
+
+    return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${colorClass}`}>{text}</span>;
   };
 
   return (
-    <div className="flex flex-col h-full bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200">
+    <div className="flex flex-col h-full bg-white shadow-sm rounded-2xl overflow-hidden border border-slate-200">
       <CustomDatePicker 
         isOpen={pickerState.isOpen}
         initialDate={pickerState.currentDate}
@@ -452,193 +453,180 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
         onClose={() => setPickerState(prev => ({ ...prev, isOpen: false }))}
       />
 
-      <div className="bg-white border-b border-gray-200">
-        <div className="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex items-center space-x-2">
-            <h2 className="text-xl font-bold text-gray-800">請採購項目管理表</h2>
+      <div className="bg-white border-b border-slate-200">
+        <div className="p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex items-center space-x-3">
+             <div className="bg-blue-600 p-2 rounded-lg text-white">
+                <Layers size={20} />
+             </div>
+             <div>
+                <h2 className="text-xl font-bold text-slate-800">請採購項目管理表</h2>
+                <p className="text-sm text-slate-500">進度追蹤與時程控管</p>
+             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {canManageRows && (
-              <button onClick={addRow} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors shadow-sm text-sm font-medium">
+              <button onClick={addRow} className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors shadow-sm text-sm font-medium">
                 <Plus size={16} /> 新增
               </button>
             )}
-            <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors shadow-sm text-sm font-medium">
+            <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors shadow-sm text-sm font-medium">
               <Download size={16} /> 匯出
-            </button>
-            <button onClick={onBackToHome} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded hover:bg-slate-200 transition-colors shadow-sm text-sm font-medium ml-2">
-              <Home size={16} /> 首頁
-            </button>
-             <button onClick={onLogout} className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors shadow-sm text-sm font-medium ml-2">
-              <LogOut size={16} /> 登出
             </button>
           </div>
         </div>
 
         {/* Summary Dashboard */}
-        <div className="px-4 pb-4">
+        <div className="px-6 pb-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm font-medium">總項目</p>
-                <p className="text-2xl font-bold mt-1 text-blue-600">{totalItems}</p>
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">總項目</p>
+                <p className="text-2xl font-bold text-blue-600">{totalItems}</p>
               </div>
-              <div className="p-3 rounded-full bg-blue-50">
-                <Layers className="text-blue-600" size={24} />
+              <div className="p-2.5 rounded-lg bg-white border border-slate-100 text-blue-500">
+                <Layers size={20} />
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm font-medium">延誤項目</p>
-                <p className={`text-2xl font-bold mt-1 ${delayedItems > 0 ? 'text-red-600' : 'text-gray-800'}`}>{delayedItems}</p>
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">延誤項目</p>
+                <p className={`text-2xl font-bold ${delayedItems > 0 ? 'text-red-600' : 'text-slate-700'}`}>{delayedItems}</p>
               </div>
-              <div className="p-3 rounded-full bg-red-50">
-                <AlertCircle className="text-red-600" size={24} />
+              <div className="p-2.5 rounded-lg bg-white border border-slate-100 text-red-500">
+                <AlertCircle size={20} />
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm font-medium">本週即將到期</p>
-                <p className="text-2xl font-bold mt-1 text-amber-600">{upcomingItems}</p>
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">本週即將到期</p>
+                <p className="text-2xl font-bold text-amber-600">{upcomingItems}</p>
               </div>
-              <div className="p-3 rounded-full bg-amber-50">
-                <Clock className="text-amber-600" size={24} />
+              <div className="p-2.5 rounded-lg bg-white border border-slate-100 text-amber-500">
+                <Clock size={20} />
               </div>
             </div>
 
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
               <div>
-                <p className="text-gray-500 text-sm font-medium">已完成項目</p>
-                <p className="text-2xl font-bold mt-1 text-green-600">{completedItems}</p>
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">已完成</p>
+                <p className="text-2xl font-bold text-green-600">{completedItems}</p>
               </div>
-              <div className="p-3 rounded-full bg-green-50">
-                <CheckCircle className="text-green-600" size={24} />
+              <div className="p-2.5 rounded-lg bg-white border border-slate-100 text-green-500">
+                <CheckCircle size={20} />
               </div>
             </div>
           </div>
-        </div>
-        
-        <div className="px-4 py-2 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2 text-xs text-gray-500">
-          <div className="flex items-center gap-2">
-            <Lock size={12} />
-            <span>目前權限: </span>
-            <span className="font-medium text-gray-700">{ROLE_DESCRIPTIONS[userRole]}</span>
-          </div>
-          {userRole === 'ADMIN' && (
-            <button onClick={resetData} className="flex items-center gap-1 text-gray-400 hover:text-red-600 transition-colors">
-              <RefreshCw size={10} /> 重置本專案資料
-            </button>
-          )}
         </div>
       </div>
 
       <div className="flex-1 overflow-auto custom-scrollbar relative bg-white">
-        <table className="min-w-full border-collapse text-sm">
-          <thead className="sticky top-0 z-10 shadow-sm">
-             <tr className="border-b border-gray-200">
-              <th className="bg-gray-50 p-2 text-center text-gray-400 font-semibold w-[50px] border-r border-gray-100"></th>
-              <th className="bg-gray-50 p-2 text-left font-bold text-gray-700 border-r border-gray-100 min-w-[200px]">工程資訊</th>
-              <th className="bg-blue-50 p-2 text-center font-bold text-blue-900 border-r border-blue-100" colSpan={2}>提出時間</th>
-              <th className="bg-gray-50 p-2 text-center font-bold text-gray-700 border-r border-gray-100" colSpan={2}>主辦人員</th>
-              <th className="bg-gray-50 p-2 text-center font-bold text-gray-700 border-r border-gray-100" colSpan={3}>退件/重送</th>
-              <th className="bg-gray-50 p-2 text-center font-bold text-gray-700 border-r border-gray-100" colSpan={2}>承攬發包</th>
-              <th className="bg-yellow-50 p-2 text-center font-bold text-yellow-900 border-r border-yellow-100" colSpan={2}>進度狀態</th>
-              <th className="bg-gray-50 p-2 text-left font-bold text-gray-700 min-w-[200px]">備註</th>
+        <table className="min-w-full border-separate border-spacing-0 text-sm">
+          <thead className="sticky top-0 z-10 shadow-sm bg-slate-50/90 backdrop-blur-sm">
+             <tr>
+              <th className="bg-slate-50 p-3 text-center text-slate-400 font-semibold w-[50px] border-b border-slate-200"></th>
+              <th className="bg-slate-50 p-3 text-left font-bold text-slate-700 border-b border-slate-200 min-w-[200px]">工程資訊</th>
+              <th className="bg-blue-50/50 p-3 text-center font-bold text-blue-900 border-b border-blue-100 border-l border-blue-100" colSpan={2}>提出時間</th>
+              <th className="bg-slate-50 p-3 text-center font-bold text-slate-700 border-b border-slate-200 border-l border-slate-200" colSpan={2}>主辦人員</th>
+              <th className="bg-slate-50 p-3 text-center font-bold text-slate-700 border-b border-slate-200 border-l border-slate-200" colSpan={3}>退件/重送</th>
+              <th className="bg-slate-50 p-3 text-center font-bold text-slate-700 border-b border-slate-200 border-l border-slate-200" colSpan={2}>承攬發包</th>
+              <th className="bg-yellow-50/50 p-3 text-center font-bold text-yellow-900 border-b border-yellow-100 border-l border-yellow-100" colSpan={2}>進度狀態</th>
+              <th className="bg-slate-50 p-3 text-left font-bold text-slate-700 border-b border-slate-200 min-w-[200px] border-l border-slate-200">備註</th>
             </tr>
-            <tr className="border-b border-gray-200 text-xs text-gray-500 font-medium">
-              <th className="bg-white p-1 border-r border-gray-100"></th>
-              <th className="bg-white p-1 text-left border-r border-gray-100 pl-2">項目名稱</th>
+            <tr className="text-xs text-slate-500 font-medium">
+              <th className="bg-slate-50 p-2 border-b border-slate-200"></th>
+              <th className="bg-slate-50 p-2 text-left border-b border-slate-200 pl-4">項目名稱</th>
               
-              <th className="bg-blue-50/20 p-1 text-center text-blue-800 min-w-[110px]">預定</th>
-              <th className="bg-blue-50/20 p-1 text-center text-blue-800 border-r-2 border-gray-100 min-w-[110px]">實際</th>
+              <th className="bg-blue-50/50 p-2 text-center text-blue-800 border-b border-blue-100 border-l border-blue-100 min-w-[110px]">預定</th>
+              <th className="bg-blue-50/50 p-2 text-center text-blue-800 border-b border-blue-100 min-w-[110px]">實際</th>
               
-              <th className="bg-white p-1 text-center w-[4.5rem] min-w-[4.5rem] whitespace-nowrap">工地</th>
-              <th className="bg-white p-1 text-center border-r-2 border-gray-100 w-[4.5rem] min-w-[4.5rem] whitespace-nowrap">採發</th>
+              <th className="bg-slate-50 p-2 text-center border-b border-slate-200 border-l border-slate-200 w-[4.5rem] min-w-[4.5rem]">工地</th>
+              <th className="bg-slate-50 p-2 text-center border-b border-slate-200 w-[4.5rem] min-w-[4.5rem]">採發</th>
               
-              <th className="bg-white p-1 text-center min-w-[110px]">退件日</th>
-              <th className="bg-white p-1 text-center">原因</th>
-              <th className="bg-white p-1 text-center border-r-2 border-gray-100 min-w-[110px]">重送日</th>
+              <th className="bg-slate-50 p-2 text-center border-b border-slate-200 border-l border-slate-200 min-w-[110px]">退件日</th>
+              <th className="bg-slate-50 p-2 text-center border-b border-slate-200">原因</th>
+              <th className="bg-slate-50 p-2 text-center border-b border-slate-200 min-w-[110px]">重送日</th>
               
-              <th className="bg-white p-1 text-center min-w-[110px]">確認日</th>
-              <th className="bg-white p-1 text-center border-r-2 border-gray-100">廠商</th>
+              <th className="bg-slate-50 p-2 text-center border-b border-slate-200 border-l border-slate-200 min-w-[110px]">確認日</th>
+              <th className="bg-slate-50 p-2 text-center border-b border-slate-200">廠商</th>
               
-              <th className="bg-yellow-50/20 p-1 text-center text-yellow-800">差異</th>
-              <th className="bg-yellow-50/20 p-1 text-center text-yellow-800 border-r border-yellow-100">燈號</th>
+              <th className="bg-yellow-50/50 p-2 text-center text-yellow-800 border-b border-yellow-100 border-l border-yellow-100">差異</th>
+              <th className="bg-yellow-50/50 p-2 text-center text-yellow-800 border-b border-yellow-100">狀態</th>
               
-              <th className="bg-white p-1 text-left pl-2">說明</th>
+              <th className="bg-slate-50 p-2 text-left border-b border-slate-200 border-l border-slate-200 pl-4">說明</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 bg-white">
+          <tbody className="bg-white">
             {displayRows.map((row) => {
                const variance = calculateVariance(row.scheduledRequestDate, row.actualRequestDate);
                const varianceColor = getVarianceColor(variance);
 
                return (
-                <tr key={row.id} className="hover:bg-blue-50/50 group transition-colors">
+                <tr key={row.id} className="hover:bg-blue-50/30 group transition-colors">
                   {/* Op */}
-                  <td className="py-1.5 px-1 text-center border-r border-gray-100">
+                  <td className="py-2 px-2 text-center border-b border-slate-100">
                     <button 
                       onClick={() => deleteRow(row.id)}
                       disabled={!canManageRows}
-                      className={`p-1 rounded transition-colors ${canManageRows ? 'text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 cursor-pointer' : 'text-transparent cursor-not-allowed'}`}
+                      className={`p-1.5 rounded-lg transition-colors ${canManageRows ? 'text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 cursor-pointer' : 'text-transparent cursor-not-allowed'}`}
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </button>
                   </td>
 
                   {/* Item */}
-                  <td className="py-1.5 px-1 border-r border-gray-100 align-middle">
-                     <BufferedInput value={row.engineeringItem} disabled={!isEditable('engineeringItem')} onCommit={(val) => updateRow(row.id, 'engineeringItem', val)} className={getInputClass('engineeringItem') + " font-medium"} placeholder="輸入工程項目"/>
+                  <td className="py-2 px-2 border-b border-slate-100 align-middle">
+                     <BufferedInput value={row.engineeringItem} disabled={!isEditable('engineeringItem')} onCommit={(val) => updateRow(row.id, 'engineeringItem', val)} className={getInputClass('engineeringItem') + " font-bold text-slate-800"} placeholder="輸入工程項目"/>
                   </td>
 
                   {/* Request Group */}
-                  <td className="py-1.5 px-1 align-middle">
+                  <td className="py-2 px-2 border-b border-slate-100 border-l border-slate-50 align-middle bg-blue-50/10">
                     <DateInput value={row.scheduledRequestDate} disabled={!isEditable('scheduledRequestDate')} onChange={(val) => updateRow(row.id, 'scheduledRequestDate', val)} className={getInputClass('scheduledRequestDate')} onOpenPicker={() => handleOpenPicker(row.id, 'scheduledRequestDate', row.scheduledRequestDate)}/>
                   </td>
-                  <td className="py-1.5 px-1 border-r-2 border-gray-100 align-middle">
+                  <td className="py-2 px-2 border-b border-slate-100 align-middle bg-blue-50/10">
                     <DateInput value={row.actualRequestDate} disabled={!isEditable('actualRequestDate')} onChange={(val) => updateRow(row.id, 'actualRequestDate', val)} className={getInputClass('actualRequestDate')} onOpenPicker={() => handleOpenPicker(row.id, 'actualRequestDate', row.actualRequestDate)}/>
                   </td>
 
                   {/* Organizers */}
-                  <td className="py-1.5 px-1 align-middle w-[4.5rem] min-w-[4.5rem]">
+                  <td className="py-2 px-2 align-middle w-[4.5rem] min-w-[4.5rem] border-b border-slate-100 border-l border-slate-50">
                     <BufferedInput value={row.siteOrganizer} disabled={!isEditable('siteOrganizer')} onCommit={(val) => updateRow(row.id, 'siteOrganizer', val)} className={getInputClass('siteOrganizer') + " text-center"}/>
                   </td>
-                  <td className="py-1.5 px-1 border-r-2 border-gray-100 align-middle w-[4.5rem] min-w-[4.5rem]">
+                  <td className="py-2 px-2 border-b border-slate-100 align-middle w-[4.5rem] min-w-[4.5rem]">
                     <BufferedInput value={row.procurementOrganizer} disabled={!isEditable('procurementOrganizer')} onCommit={(val) => updateRow(row.id, 'procurementOrganizer', val)} className={getInputClass('procurementOrganizer') + " text-center"}/>
                   </td>
 
                   {/* Process */}
-                  <td className="py-1.5 px-1 align-middle">
+                  <td className="py-2 px-2 align-middle border-b border-slate-100 border-l border-slate-50">
                     <DateInput value={row.returnDate} disabled={!isEditable('returnDate')} onChange={(val) => updateRow(row.id, 'returnDate', val)} className={getInputClass('returnDate')} onOpenPicker={() => handleOpenPicker(row.id, 'returnDate', row.returnDate)}/>
                   </td>
-                  <td className="py-1.5 px-1 align-middle">
+                  <td className="py-2 px-2 align-middle border-b border-slate-100">
                     <BufferedInput value={row.returnReason} disabled={!isEditable('returnReason')} onCommit={(val) => updateRow(row.id, 'returnReason', val)} className={getInputClass('returnReason') + " text-center"}/>
                   </td>
-                  <td className="py-1.5 px-1 border-r-2 border-gray-100 align-middle">
+                  <td className="py-2 px-2 border-b border-slate-100 align-middle">
                     <DateInput value={row.resubmissionDate} disabled={!isEditable('resubmissionDate')} onChange={(val) => updateRow(row.id, 'resubmissionDate', val)} className={getInputClass('resubmissionDate')} onOpenPicker={() => handleOpenPicker(row.id, 'resubmissionDate', row.resubmissionDate)}/>
                   </td>
 
                   {/* Contractor */}
-                  <td className="py-1.5 px-1 align-middle">
+                  <td className="py-2 px-2 align-middle border-b border-slate-100 border-l border-slate-50">
                     <DateInput value={row.contractorConfirmDate} disabled={!isEditable('contractorConfirmDate')} onChange={(val) => updateRow(row.id, 'contractorConfirmDate', val)} className={getInputClass('contractorConfirmDate')} onOpenPicker={() => handleOpenPicker(row.id, 'contractorConfirmDate', row.contractorConfirmDate)}/>
                   </td>
-                  <td className="py-1.5 px-1 border-r-2 border-gray-100 align-middle">
+                  <td className="py-2 px-2 border-b border-slate-100 align-middle">
                     <BufferedInput value={row.contractorName} disabled={!isEditable('contractorName')} onCommit={(val) => updateRow(row.id, 'contractorName', val)} className={getInputClass('contractorName') + " text-center"}/>
                   </td>
 
                   {/* Status Group */}
-                  <td className={`py-1.5 px-1 text-center font-bold text-lg align-middle ${varianceColor}`}>
+                  <td className={`py-2 px-2 text-center font-bold text-lg align-middle border-b border-slate-100 border-l border-slate-50 bg-yellow-50/10 ${varianceColor}`}>
                     {variance !== null ? (variance > 0 ? `+${variance}` : variance) : ''}
                   </td>
-                  <td className="py-1.5 px-1 text-center border-r border-gray-100 align-middle">
-                    <StatusLight variance={variance} />
+                  <td className="py-2 px-2 text-center border-b border-slate-100 align-middle bg-yellow-50/10">
+                    <StatusPill variance={variance} />
                   </td>
 
                   {/* Remarks */}
-                  <td className="py-1.5 px-1 align-middle">
+                  <td className="py-2 px-2 align-middle border-b border-slate-100 border-l border-slate-50">
                     <BufferedInput value={row.remarks} disabled={!isEditable('remarks')} onCommit={(val) => updateRow(row.id, 'remarks', val)} className={getInputClass('remarks')} placeholder="..."/>
                   </td>
                 </tr>
@@ -647,15 +635,27 @@ export const ProcurementTable: React.FC<ProcurementTableProps> = ({ currentProje
           </tbody>
         </table>
         {displayRows.length === 0 && (
-          <div className="text-center py-12 text-gray-400"><p>本專案無資料。請點擊「新增」開始。</p></div>
+          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+             <div className="bg-slate-50 p-4 rounded-full mb-3">
+               <Layers size={32} />
+             </div>
+             <p>本專案目前無資料</p>
+             <button onClick={addRow} className="mt-4 text-blue-600 font-medium hover:underline">新增第一筆資料</button>
+          </div>
         )}
       </div>
-      <div className="p-2 bg-gray-50 border-t text-xs text-gray-500 flex flex-wrap justify-center gap-4">
-        <span>計算公式: -(實際提出時間 - 預定提出時間)</span>
-        <span className="flex items-center gap-1"><div className="w-3 h-3 bg-green-500 rounded-full"></div> 正常</span>
-        <span className="flex items-center gap-1"><div className="w-3 h-3 bg-yellow-400 rounded-full"></div> 警示 (1-7天)</span>
-        <span className="flex items-center gap-1"><div className="w-3 h-3 bg-orange-500 rounded-full"></div> 延誤 (8-30天)</span>
-        <span className="flex items-center gap-1"><div className="w-3 h-3 bg-red-600 rounded-full"></div> 嚴重 (&gt;30天)</span>
+      
+      <div className="p-3 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+           <Lock size={12} />
+           <span>權限: {ROLE_DESCRIPTIONS[userRole]}</span>
+        </div>
+        <div className="flex gap-4">
+            <span className="flex items-center gap-1"><div className="w-2 h-2 bg-green-500 rounded-full"></div> 正常</span>
+            <span className="flex items-center gap-1"><div className="w-2 h-2 bg-yellow-400 rounded-full"></div> 警示 (1-7天)</span>
+            <span className="flex items-center gap-1"><div className="w-2 h-2 bg-orange-500 rounded-full"></div> 延誤 (8-30天)</span>
+            <span className="flex items-center gap-1"><div className="w-2 h-2 bg-red-600 rounded-full"></div> 嚴重 (&gt;30天)</span>
+        </div>
       </div>
     </div>
   );
